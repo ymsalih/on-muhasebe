@@ -72,13 +72,20 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
     };
   }
 
+  if (role === "admin") {
+    return {
+      primary: [
+        { href: "/admin", label: "Genel Bakış", icon: LayoutDashboard, enabled: true, exact: true },
+        { href: "/admin/ortaklar", label: "Ortaklar", icon: Users, enabled: true },
+        { href: "/admin/santiyeler", label: "Şantiyeler", icon: Building2, enabled: true },
+        { href: "/sites", label: "Panele Git", icon: HardHat, enabled: true, exact: true },
+      ] satisfies NavItem[],
+      more: [] as NavItem[],
+    };
+  }
+
   return {
-    primary: [
-      ...(role === "admin"
-        ? [{ href: "/admin", label: "Genel Bakış", icon: LayoutDashboard, enabled: true, exact: true }]
-        : []),
-      { href: "/sites", label: "Şantiyeler", icon: Building2, enabled: true, exact: true },
-    ] satisfies NavItem[],
+    primary: [{ href: "/sites", label: "Şantiyeler", icon: Building2, enabled: true, exact: true }] satisfies NavItem[],
     more: [] as NavItem[],
   };
 }
