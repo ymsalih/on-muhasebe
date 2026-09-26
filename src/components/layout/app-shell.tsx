@@ -60,7 +60,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       // Mobil alt çubukta görünen ana sekmeler (Daha Fazla hariç 4 adet)
       primary: [
         { href: base, label: "Ana Sayfa", icon: LayoutDashboard, enabled: true, exact: true },
-        { href: `${base}/kasa`, label: "Kasa", icon: Wallet, enabled: false },
+        { href: `${base}/kasa`, label: "Kasa", icon: Wallet, enabled: true },
         { href: `${base}/puantaj`, label: "Puantaj", icon: ClipboardCheck, enabled: true },
         { href: `${base}/cari`, label: "Cari", icon: BookUser, enabled: true },
       ] satisfies NavItem[],
