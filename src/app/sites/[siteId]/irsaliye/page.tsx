@@ -124,7 +124,7 @@ export default async function GoodsEntriesPage({
                 role="tab"
                 aria-selected={view === v}
                 className={cn(
-                  "inline-flex min-h-10 items-center rounded-md px-4 text-sm font-medium",
+                  "inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium",
                   view === v ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
