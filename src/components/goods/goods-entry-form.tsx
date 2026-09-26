@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors } from "react-hook-form";
@@ -73,6 +73,8 @@ export function GoodsEntryForm({
   const [newCategory, setNewCategory] = useState<PartyCategory>("firma");
   const [addingParty, setAddingParty] = useState(false);
   const [partyError, setPartyError] = useState<string | null>(null);
+  // Yeni eklenen firmanın seçimi, <option> DOM'a çizildikten sonra uygulanır (aksi halde tarayıcı boş seçime düşer).
+  const [pendingParty, setPendingParty] = useState<string | null>(null);
 
   const {
     register,
@@ -83,6 +85,13 @@ export function GoodsEntryForm({
   } = useForm<GoodsEntryValues>({ resolver: zodResolver(goodsEntrySchema), defaultValues: initial });
 
   const last = STEPS.length - 1;
+
+  useEffect(() => {
+    if (pendingParty && parties.some((p) => String(p.id) === pendingParty)) {
+      setValue("partyId", pendingParty, { shouldDirty: true, shouldValidate: true });
+      setPendingParty(null);
+    }
+  }, [pendingParty, parties, setValue]);
   const units = [...new Set([...suggestions.units, ...COMMON_UNITS])];
 
   function goToStep(next: number) {
@@ -130,7 +139,7 @@ export function GoodsEntryForm({
     if (!result) return setPartyError("Firma eklenemedi, bağlantınızı kontrol edip tekrar deneyin.");
     if (!result.ok) return setPartyError(result.error);
     setParties((prev) => [...prev, result.party].sort((a, b) => a.name.localeCompare(b.name, "tr")));
-    setValue("partyId", String(result.party.id), { shouldDirty: true, shouldValidate: true });
+    setPendingParty(String(result.party.id));
     setNewName("");
     setShowAddParty(false);
   }

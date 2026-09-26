@@ -87,16 +87,17 @@ export default async function CashPage({
     >
       <RangeFilter base={base} range={range} keep={keepForRange} />
 
-      <section aria-label="Aralık özeti" className="grid grid-cols-3 gap-2 sm:gap-3">
-        {cards.map(({ label, value, icon: Icon, tone, bg }) => (
-          <div key={label} className="min-w-0 rounded-xl border bg-card p-3 sm:p-4">
+      <section aria-label="Aralık özeti" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {cards.map(({ label, value, icon: Icon, tone, bg }, i) => (
+          // Mobilde Gelir/Gider yan yana, Net alt satırda tam genişlik: tutarlar ASLA kesilmez.
+          <div key={label} className={cn("min-w-0 rounded-xl border bg-card p-3 sm:p-4", i === 2 && "col-span-2 sm:col-span-1")}>
             <div className="mb-2 flex items-center gap-2">
-              <span className={cn("hidden size-7 items-center justify-center rounded-lg sm:flex", bg)}>
+              <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", bg)}>
                 <Icon className="size-4" aria-hidden />
               </span>
-              <span className="truncate text-xs text-muted-foreground sm:text-sm">{label}</span>
+              <span className="text-sm text-muted-foreground">{label}</span>
             </div>
-            <p className={cn("truncate text-base font-semibold tabular-nums sm:text-xl", tone)}>{formatCurrency(value)}</p>
+            <p className={cn("text-lg font-semibold tabular-nums sm:text-xl", tone)}>{formatCurrency(value)}</p>
           </div>
         ))}
       </section>

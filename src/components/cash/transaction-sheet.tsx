@@ -68,6 +68,8 @@ export function TransactionSheet({
   const [newCat, setNewCat] = useState("");
   const [addingCat, setAddingCat] = useState(false);
   const [catError, setCatError] = useState<string | null>(null);
+  // Yeni eklenen kategorinin seçimi, <option> DOM'a çizildikten sonra uygulanır (aksi halde tarayıcı boş seçime düşer).
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -117,6 +119,13 @@ export function TransactionSheet({
   const categoryId = watch("categoryId");
   const typeCats = cats.filter((c) => c.type === type);
 
+  useEffect(() => {
+    if (pendingCategory && cats.some((c) => String(c.id) === pendingCategory)) {
+      setValue("categoryId", pendingCategory, { shouldDirty: true });
+      setPendingCategory(null);
+    }
+  }, [pendingCategory, cats, setValue]);
+
   // Tür değişince uyumsuz kategori seçimi temizlenir (veritabanı da türü doğrular).
   useEffect(() => {
     if (categoryId && !typeCats.some((c) => String(c.id) === categoryId)) setValue("categoryId", "");
@@ -152,7 +161,7 @@ export function TransactionSheet({
     if (!res) return setCatError("Kategori eklenemedi, bağlantınızı kontrol edip tekrar deneyin.");
     if (!res.ok) return setCatError(res.error);
     setCats((prev) => [...prev, res.category].sort((a, b) => a.name.localeCompare(b.name, "tr")));
-    setValue("categoryId", String(res.category.id), { shouldDirty: true });
+    setPendingCategory(String(res.category.id));
     setNewCat("");
     setShowAddCat(false);
   }
