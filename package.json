@@ -10,7 +10,8 @@
     "create-first-admin": "tsx scripts/create-first-admin.ts",
     "typecheck": "tsc --noEmit",
     "test:rls": "tsx scripts/test-rls-sites.mts",
-    "test:rls:goods": "tsx scripts/test-rls-goods.mts"
+    "test:rls:goods": "tsx scripts/test-rls-goods.mts",
+    "test:rls:personnel": "tsx scripts/test-rls-personnel.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
