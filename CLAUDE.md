@@ -284,6 +284,15 @@ GROUP BY site_id, date_trunc('month', transaction_date), type, category_id;
 - shadcn/ui bu projede Base UI tabanlıdır (`base-nova`); `cn` yardımcısı `clsx + tailwind-merge` ile `src/lib/utils.ts`'tedir.
 - İlk admin: `npm run create-first-admin` (`.env.local`: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥10 karakter, `ADMIN_FULL_NAME`). Çalıştırdıktan sonra `ADMIN_*` değerleri `.env.local`'dan silinir.
 
+### Faz 2 uygulama notları (teknik)
+
+- Admin ekranları `(general)/admin/`: `ortaklar` (liste + `yeni`), `santiyeler` (liste + `yeni` + `[id]` üye yönetimi/durum). Her sayfa kendi başına `requireAdmin()` çağırır (layout tek başına yeterli değildir).
+- Yazma işlemleri `src/lib/admin/actions.ts` server action'larındadır (`createPartner`, `createSite`, `addSiteMember`, `removeSiteMember`, `setSiteStatus`); zod şemaları `src/lib/admin/schemas.ts`'te ve **sunucuda yeniden doğrulanır**. Yalnızca kullanıcı oluşturma `service_role` kullanır; şantiye/üye yazmaları admin oturumuyla RLS üzerinden yapılır. Kısmi kayıt oluşursa (ör. users yazılamadı) önceki adım geri alınır.
+- Yeni ortak: admin geçici şifreyi girer veya "Oluştur" ile üretir; şifre yalnızca oluşturma sonrası bilgi kartında bir kez gösterilir. `must_change_password = true`.
+- Şantiyeyi yalnızca admin oluşturur; ortaklar yeni şantiye ekleyemez ("+ Yeni Şantiye Ekle" kartı yalnızca admine görünür). Tek şantiyesi olan ortak `/` üzerinden doğrudan o şantiyeye yönlenir.
+- Dashboard özet kartları (`components/dashboard/summary-cards.tsx`) kasa/puantaj tabloları olmadığı için `null` → "—" gösterir; sahte 0 yazılmaz. **Faz 5 (puantaj) ve Faz 7 (kasa)'da `sites/[siteId]/page.tsx` içindeki `null` değerler gerçek sorgularla bağlanacak.** Şantiye seçim kartlarındaki "bu ay net bakiye" özeti de Faz 7'de eklenecek.
+- Biçimlendirme tek noktadan: `src/lib/format.ts` (`formatCurrency` → ₺12.500,00, `formatDate` → GG.AA.YYYY). Sabit alt Kaydet çubuğu: `components/layout/sticky-action-bar.tsx`.
+
 ## 7. Arayüz (UI/UX) Tasarım Kuralları
 
 Bu bölüm bağlayıcıdır — Claude Code her ekranı yazarken burada tarif edilen düzeni, bileşenleri ve mobil davranışı uygular. Görsel bir mockup önceden hazırlanmadı; ekranlar doğrudan bu tarife göre kodlanacak.
