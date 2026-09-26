@@ -9,7 +9,8 @@
     "lint": "eslint",
     "create-first-admin": "tsx scripts/create-first-admin.ts",
     "typecheck": "tsc --noEmit",
-    "test:rls": "tsx scripts/test-rls-sites.mts"
+    "test:rls": "tsx scripts/test-rls-sites.mts",
+    "test:rls:goods": "tsx scripts/test-rls-goods.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
