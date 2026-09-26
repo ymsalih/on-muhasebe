@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
-import { SiteMembersManager, type MemberRow } from "@/components/admin/site-members-manager";
+import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { SITE_MEMBER_ROLE_LABELS, type SiteMemberRole } from "@/lib/sites/schemas";
 
 export const metadata: Metadata = { title: "Şantiye Detayı — Şantiye Ön Muhasebe" };
 
@@ -17,12 +17,13 @@ type SiteDetail = {
   status: "active" | "closed";
   site_members: {
     id: number;
-    role: MemberRow["role"];
+    role: SiteMemberRole;
     share_percentage: number | null;
-    users: { id: string; full_name: string; email: string } | null;
+    users: { full_name: string; email: string } | null;
   }[];
 };
 
+/** SALT GÖRÜNTÜLEME: admin burada hiçbir şeyi değiştiremez (RLS de buna izin vermez). */
 export default async function AdminSiteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
@@ -30,31 +31,14 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
   if (!Number.isInteger(siteId)) notFound();
 
   const supabase = await createClient();
-  const [{ data: siteData }, { data: partnerData }] = await Promise.all([
-    supabase
-      .from("sites")
-      .select("id, name, address, start_date, status, site_members(id, role, share_percentage, users(id, full_name, email))")
-      .eq("id", siteId)
-      .maybeSingle(),
-    supabase.from("users").select("id, full_name").eq("role", "partner").order("full_name"),
-  ]);
+  const { data } = await supabase
+    .from("sites")
+    .select("id, name, address, start_date, status, site_members(id, role, share_percentage, users(full_name, email))")
+    .eq("id", siteId)
+    .maybeSingle();
 
-  const site = siteData as SiteDetail | null;
+  const site = data as SiteDetail | null;
   if (!site) notFound();
-
-  const memberIds = new Set(site.site_members.map((m) => m.users?.id));
-  const members: MemberRow[] = site.site_members
-    .filter((m) => m.users)
-    .map((m) => ({
-      id: m.id,
-      fullName: m.users!.full_name,
-      email: m.users!.email,
-      role: m.role,
-      sharePercentage: m.share_percentage === null ? null : Number(m.share_percentage),
-    }));
-  const available = (partnerData ?? [])
-    .filter((p) => !memberIds.has(p.id as string))
-    .map((p) => ({ id: p.id as string, fullName: p.full_name as string }));
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -66,19 +50,30 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">{site.name}</h1>
         <p className="text-sm text-muted-foreground">
-          {site.address ?? "Adres girilmedi"}
+          {site.status === "active" ? "Aktif" : "Kapalı"} · {site.address ?? "Adres girilmedi"}
           {site.start_date && ` · Başlangıç: ${formatDate(site.start_date)}`}
         </p>
-        <Link
-          href={`/sites/${site.id}`}
-          className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Şantiye paneline git
-          <ExternalLink className="size-3.5" aria-hidden />
-        </Link>
       </div>
 
-      <SiteMembersManager siteId={site.id} status={site.status} members={members} available={available} />
+      <section className="space-y-3 rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-semibold">Üyeler</h2>
+        {site.site_members.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Bu şantiyede üye yok.</p>
+        ) : (
+          <ul className="divide-y">
+            {site.site_members.map((m) => (
+              <li key={m.id} className="py-2.5">
+                <p className="truncate text-sm font-medium">{m.users?.full_name ?? "—"}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {SITE_MEMBER_ROLE_LABELS[m.role]}
+                  {m.share_percentage !== null && ` · %${Number(m.share_percentage)}`}
+                  {m.users && ` · ${m.users.email}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

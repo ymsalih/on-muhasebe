@@ -12,8 +12,6 @@ import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import { createPartner } from "@/lib/admin/actions";
 import { createPartnerSchema, type CreatePartnerValues } from "@/lib/admin/schemas";
 
-type SiteOption = { id: number; name: string };
-
 // Karışması kolay karakterler (0/O, 1/l/I) çıkarıldı: şifre telefonla/WhatsApp'la iletilecek.
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
@@ -23,7 +21,7 @@ function generatePassword(length = 12) {
   return Array.from(bytes, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");
 }
 
-export function PartnerForm({ sites }: { sites: SiteOption[] }) {
+export function PartnerForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ email: string; password: string; fullName: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -32,21 +30,12 @@ export function PartnerForm({ sites }: { sites: SiteOption[] }) {
     register,
     handleSubmit,
     setValue,
-    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreatePartnerValues>({
     resolver: zodResolver(createPartnerSchema),
-    defaultValues: { fullName: "", email: "", phone: "", password: "", siteIds: [] },
+    defaultValues: { fullName: "", email: "", phone: "", password: "" },
   });
-
-  const siteIds = watch("siteIds");
-
-  function toggleSite(id: number) {
-    setValue("siteIds", siteIds.includes(id) ? siteIds.filter((s) => s !== id) : [...siteIds, id], {
-      shouldDirty: true,
-    });
-  }
 
   async function onSubmit(values: CreatePartnerValues) {
     setFormError(null);
@@ -176,23 +165,6 @@ export function PartnerForm({ sites }: { sites: SiteOption[] }) {
         </Field>
         <p className="text-xs text-muted-foreground">Ortak ilk girişte bu şifreyi değiştirmek zorunda kalacak.</p>
       </fieldset>
-
-      {sites.length > 0 && (
-        <fieldset className="space-y-1 rounded-xl border bg-card p-4">
-          <legend className="px-1 text-sm font-semibold">Şantiye Erişimi (opsiyonel)</legend>
-          {sites.map((site) => (
-            <label key={site.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-1 hover:bg-muted/50">
-              <input
-                type="checkbox"
-                className="size-5 accent-primary"
-                checked={siteIds.includes(site.id)}
-                onChange={() => toggleSite(site.id)}
-              />
-              <span className="text-sm">{site.name}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
 
       <StickyActionBar>
         <Button type="submit" className="h-12 flex-1 text-base" disabled={isSubmitting}>

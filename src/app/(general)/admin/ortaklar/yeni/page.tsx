@@ -3,13 +3,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PartnerForm } from "@/components/admin/partner-form";
 import { requireAdmin } from "@/lib/auth/session";
-import { getAccessibleSites } from "@/lib/sites";
 
 export const metadata: Metadata = { title: "Yeni Ortak — Şantiye Ön Muhasebe" };
 
 export default async function NewPartnerPage() {
   await requireAdmin();
-  const sites = await getAccessibleSites(); // admin için tüm şantiyeler
 
   return (
     <div className="space-y-4">
@@ -18,7 +16,7 @@ export default async function NewPartnerPage() {
         Ortaklar
       </Link>
       <h1 className="text-xl font-semibold">Yeni Ortak Ekle</h1>
-      <PartnerForm sites={sites.map(({ id, name }) => ({ id, name }))} />
+      <PartnerForm />
     </div>
   );
 }
