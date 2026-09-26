@@ -68,7 +68,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       more: [
         { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
         { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: true },
-        { href: `${base}/personel`, label: "Personel", icon: Users, enabled: false },
+        { href: `${base}/personel`, label: "Personel", icon: Users, enabled: true },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: false },
       ] satisfies NavItem[],
     };
