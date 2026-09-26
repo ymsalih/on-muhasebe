@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarX2 } from "lucide-react";
+import { MatrixScroll } from "@/components/attendance/matrix-scroll";
 import type { AttendancePerson, MonthData } from "@/lib/attendance/queries";
 import { workAvailability } from "@/lib/personnel/status";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ export function MonthlyMatrix({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border bg-card">
+      <MatrixScroll>
         <table className="min-w-max border-collapse text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
@@ -68,10 +69,11 @@ export function MonthlyMatrix({
                 Personel
               </th>
               {days.map((d) => (
-                <th key={d.iso} scope="col" className={cn("border-l p-0 font-medium", d.weekend && "bg-muted")}>
+                <th key={d.iso} scope="col" data-today={d.iso === today ? "" : undefined} className={cn("border-l p-0 font-medium", d.weekend && "bg-muted", d.iso === today && "bg-primary/10")}>
                   {d.iso <= today ? (
                     <Link
                       href={`/sites/${siteId}/puantaj?tarih=${d.iso}`}
+                      prefetch={false}
                       aria-label={`${d.n} ${WEEKDAYS[d.dow]} günlük puantaja git`}
                       className="flex h-11 min-w-11 flex-col items-center justify-center leading-tight hover:bg-muted/70"
                     >
@@ -143,7 +145,7 @@ export function MonthlyMatrix({
             </tr>
           </tfoot>
         </table>
-      </div>
+      </MatrixScroll>
 
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span><span className="font-bold text-emerald-600">✓</span> Geldi</span>
