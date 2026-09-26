@@ -1,4 +1,4 @@
-/** RLS entegrasyon testi (Faz 6): transactions, categories, party_balances view'i ve cari (parties) yönetimi.
+/** RLS entegrasyon testi (Faz 6-7): transactions, categories, party_balances view'i ve cari (parties) yönetimi.
  *  Geçici hesap/şantiye açar, gerçek oturumlarla dener, sonunda hepsini siler.
  *  Çalıştırma: npm run test:rls:transactions  (.env.local içinde SUPABASE_SERVICE_ROLE_KEY gerekir) */
 import { config } from "dotenv";
@@ -154,6 +154,42 @@ try {
   check("bakiye: başka şantiyenin sahibi boş görür", ((await c.owner2.from("party_balances").select("party_id").eq("site_id", siteA)).data?.length ?? 1) === 0);
   check("bakiye: anonim okuyamaz", denied(await createClient(url, anon).from("party_balances").select("party_id")));
   check("bakiye: başka şantiyenin carisi bu şantiyenin toplamına karışmaz", num((await c.owner2.from("party_balances").select("total_turnover").eq("party_id", pB).single()).data?.total_turnover) === 0);
+
+  // ---------- Faz 7: varsayılan kategoriler, get_cash_summary RPC'si, site_cash_summary view'i ----------
+  const seeded = await c.outsider.from("categories").select("name, type").is("site_id", null).not("name", "like", `%${tag}`);
+  check("varsayılan kategoriler tohumlandı (4 gelir + 9 gider) ve herkes okuyabilir", (seeded.data?.filter((r) => r.type === "income").length ?? 0) >= 4 && (seeded.data?.filter((r) => r.type === "expense").length ?? 0) >= 9, JSON.stringify(seeded.data?.length));
+  check("varsayılan 'Malzeme' gider ve 'Hakediş' gelir kategorisi var", !!seeded.data?.some((r) => r.name === "Malzeme" && r.type === "expense") && !!seeded.data?.some((r) => r.name === "Hakediş" && r.type === "income"));
+
+  type SumRow = { type: string; category_id: number | null; total: number; tx_count: number };
+  const rangeFrom = "2026-01-01";
+  const rangeTo = "2026-12-31";
+  const truth = ((await svc.from("transactions").select("type, amount, category_id").eq("site_id", siteA).gte("transaction_date", rangeFrom).lte("transaction_date", rangeTo)).data ?? []) as { type: string; amount: number; category_id: number | null }[];
+  const truthByType = (t: string) => truth.filter((r) => r.type === t).reduce((sum, r) => sum + Number(r.amount), 0);
+  const sumOf = async (who: Who, from = rangeFrom, to = rangeTo) => (await c[who].rpc("get_cash_summary", { p_site_id: siteA, p_from: from, p_to: to }));
+  const owSum = await sumOf("owner");
+  const rows7 = (owSum.data ?? []) as SumRow[];
+  const byType = (t: string) => rows7.filter((r) => r.type === t).reduce((sum, r) => sum + Number(r.total), 0);
+  check("get_cash_summary: gelir toplamı gerçek toplamla aynı", !owSum.error && Math.abs(byType("income") - truthByType("income")) < 0.001 && truthByType("income") > 0, JSON.stringify(owSum.error ?? { rpc: byType("income"), truth: truthByType("income") }));
+  check("get_cash_summary: gider toplamı gerçek toplamla aynı", Math.abs(byType("expense") - truthByType("expense")) < 0.001 && truthByType("expense") > 0);
+  check("get_cash_summary: hareket sayısı doğru", rows7.reduce((n, r) => n + r.tx_count, 0) === truth.length);
+  check("get_cash_summary: kategorisiz hareketler category_id boş satırda gruplanır", rows7.some((r) => r.category_id === null));
+  check("get_cash_summary: kategorili hareketler kategoriye göre ayrılır", rows7.some((r) => r.category_id === dExp!.id));
+  const narrow = ((await sumOf("owner", "2026-09-20", "2026-09-20")).data ?? []) as SumRow[];
+  check("get_cash_summary: tarih aralığı dışındaki hareketler gelmez (tek gün)", narrow.reduce((n, r) => n + r.tx_count, 0) === truth.filter(() => false).length + ((await svc.from("transactions").select("id").eq("site_id", siteA).eq("transaction_date", "2026-09-20")).data?.length ?? 0));
+  check("get_cash_summary: boş aralık boş döner", ((await sumOf("owner", "2001-01-01", "2001-01-02")).data as unknown[] | null)?.length === 0);
+  check("get_cash_summary: viewer görebilir", ((await sumOf("viewer")).data as unknown[] | null)?.length === rows7.length);
+  check("get_cash_summary: admin görüntüleyebilir", ((await sumOf("admin")).data as unknown[] | null)?.length === rows7.length);
+  check("get_cash_summary: üye olmayan boş görür (RLS)", ((await sumOf("outsider")).data as unknown[] | null)?.length === 0);
+  check("get_cash_summary: başka şantiyenin sahibi boş görür", ((await sumOf("owner2")).data as unknown[] | null)?.length === 0);
+  check("get_cash_summary: anonim çağıramaz", !!(await createClient(url, anon).rpc("get_cash_summary", { p_site_id: siteA, p_from: rangeFrom, p_to: rangeTo })).error);
+
+  const monthly = await c.viewer.from("site_cash_summary").select("month, type, category_id, total").eq("site_id", siteA);
+  const monthlyExpense = (monthly.data ?? []).filter((r) => r.type === "expense").reduce((sum, r) => sum + Number(r.total), 0);
+  check("site_cash_summary: aylık toplamlar hareketlerle tutarlı (gider)", !monthly.error && Math.abs(monthlyExpense - truthByType("expense")) < 0.001, JSON.stringify(monthly.error));
+  check("site_cash_summary: ay ilk gün olarak gelir (yyyy-mm-01)", (monthly.data ?? []).every((r) => /^\d{4}-\d{2}-01$/.test(String(r.month))));
+  check("site_cash_summary: üye olmayan boş görür", ((await c.outsider.from("site_cash_summary").select("month").eq("site_id", siteA)).data?.length ?? 1) === 0);
+  check("site_cash_summary: admin görüntüleyebilir", ((await c.admin.from("site_cash_summary").select("month").eq("site_id", siteA)).data?.length ?? 0) > 0);
+  check("site_cash_summary: anonim okuyamaz", denied(await createClient(url, anon).from("site_cash_summary").select("month")));
 
   // ---------- cari yönetimi (parties) ----------
   check("hareketi olan cari silinemez (yabancı anahtar)", !!(await c.owner.from("parties").delete().eq("id", pA2)).error);
