@@ -1,5 +1,5 @@
 /** Birim testi: personelin tarihlerden türetilen güncel durumu. Çalıştırma: npm run test:status */
-import { effectiveStatus, addDays, shortNote, type StatusInput } from "../src/lib/personnel/status";
+import { effectiveStatus, addDays, shortNote, workAvailability, type StatusInput } from "../src/lib/personnel/status";
 
 const base: StatusInput = {
   status: "aktif",
@@ -60,6 +60,22 @@ eq("hiçbir şey yok: aktif", st({}, "2026-10-01"), "aktif");
 
 eq("yaklaşan izin notu Türkçe küçük harfle yazılır (i̇ değil i)", shortNote(effectiveStatus(p(izin), "2026-10-01")), "Yaklaşan izin: 25.10.2026 – 29.10.2026");
 eq("devam eden izin notu", shortNote(effectiveStatus(p(izin), "2026-10-26")), "İzin: 29.10.2026 tarihinde dönüyor");
+// Puantaj: o tarihte işe gelebilir mi?
+const w = (o: Partial<StatusInput> & { hire_date?: string | null }, date: string) => workAvailability({ ...base, hire_date: null, ...o }, date);
+eq("aktif kişi çalışabilir", w({}, "2026-10-01"), { workable: true, reason: null });
+eq("izinliyken çalışamaz (neden: İzinli)", w({ leave_start: "2026-10-01", return_date: "2026-10-05" }, "2026-10-03"), { workable: false, reason: "İzinli" });
+eq("izin dönüş gününde çalışabilir", w({ leave_start: "2026-10-01", return_date: "2026-10-05" }, "2026-10-05"), { workable: true, reason: null });
+eq("raporluyken çalışamaz", w({ report_start: "2026-10-01", return_date: "2026-10-05" }, "2026-10-02").reason, "Raporlu");
+eq("geçici görevdeyken çalışamaz", w({ temp_assignment_start: "2026-10-01" }, "2026-10-09").reason, "Geçici Görevde");
+eq("işe girişten önce çalışamaz", w({ hire_date: "2026-10-10" }, "2026-10-09"), { workable: false, reason: "İşe başlamamış" });
+eq("işe giriş günü çalışabilir", w({ hire_date: "2026-10-10" }, "2026-10-10").workable, true);
+eq("çıkış gününden sonra çalışamaz", w({ termination_date: "2026-10-10" }, "2026-10-11"), { workable: false, reason: "Ayrıldı" });
+eq("çıkış günü (son iş günü) çalışabilir", w({ termination_date: "2026-10-10" }, "2026-10-10").workable, true);
+eq("ayrıldı + çıkış tarihi yok: hiçbir tarihte çalışamaz", w({ status: "ayrildi" }, "2026-10-10").reason, "Ayrıldı");
+eq("ayrıldı + çıkış tarihi var: çıkıştan önceki geçmiş günde çalışabilir (eski puantaj düzeltmesi)", w({ status: "ayrildi", termination_date: "2026-10-10" }, "2026-10-05").workable, true);
+eq("geçmiş bir tarihte izin sürüyorduysa o gün çalışamaz", w({ leave_start: "2026-09-01", return_date: "2026-09-10" }, "2026-09-05").workable, false);
+eq("izin bittikten sonraki geçmiş gün çalışabilir", w({ leave_start: "2026-09-01", return_date: "2026-09-10" }, "2026-09-20").workable, true);
+
 eq("addDays ay sonunu aşar", addDays("2026-10-30", 5), "2026-11-04");
 eq("addDays yıl sonunu aşar", addDays("2026-12-30", 3), "2027-01-02");
 

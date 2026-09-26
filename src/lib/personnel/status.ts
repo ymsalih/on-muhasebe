@@ -1,5 +1,5 @@
 import { formatDate } from "@/lib/format";
-import type { PersonStatus } from "@/lib/personnel/schemas";
+import { PERSON_STATUS_LABELS, type PersonStatus } from "@/lib/personnel/schemas";
 
 /**
  * Personelin GÜNCEL durumu, kayıtlı çalışma durumundan ve izin/rapor/geçici görev tarihlerinden türetilir.
@@ -114,4 +114,24 @@ export function shortNote(eff: EffectiveStatus): string | null {
     return `Yaklaşan ${ABSENCE_LABELS[eff.upcoming.kind].toLocaleLowerCase("tr-TR")}: ${formatDate(eff.upcoming.start)}${eff.upcoming.end ? ` – ${formatDate(eff.upcoming.end)}` : ""}`;
   }
   return null;
+}
+
+/** Puantaj listesi için gereken alanlar: durum girdileri + işe giriş tarihi. */
+export type WorkInput = StatusInput & { hire_date: string | null };
+
+/**
+ * Bir kişi verilen tarihte işe gelebilir mi? Puantajda (Faz 5) listeye girecek personeli belirler.
+ * Gelemez: işe girmeden önce, işten çıktıktan sonra, ayrıldı (çıkış tarihi bilinmiyorsa her tarih için),
+ * izinli / raporlu / geçici görevde olduğu gün. `reason` kullanıcıya gösterilir.
+ * Not: geçmiş bir tarih için de doğru çalışır (dönem o tarihte devam ediyor muydu diye bakar).
+ */
+export function workAvailability(p: WorkInput, date: string): { workable: boolean; reason: string | null } {
+  if (p.hire_date && date < p.hire_date) return { workable: false, reason: "İşe başlamamış" };
+  if (p.termination_date && date > p.termination_date) return { workable: false, reason: "Ayrıldı" };
+  if (p.status === "ayrildi" && !p.termination_date) return { workable: false, reason: "Ayrıldı" };
+
+  // Çıkış ve kayıtlı durum yukarıda ele alındı; burada yalnızca izin/rapor/geçici görev dönemlerine bakılır.
+  const eff = effectiveStatus({ ...p, status: "aktif", termination_date: null }, date);
+  if (eff.status !== "aktif") return { workable: false, reason: PERSON_STATUS_LABELS[eff.status] };
+  return { workable: true, reason: null };
 }
