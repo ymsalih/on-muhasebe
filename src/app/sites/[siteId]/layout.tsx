@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { requireUser } from "@/lib/auth/session";
-import { getAccessibleSites } from "@/lib/sites";
+import { getAccessibleSites } from "@/lib/sites/queries";
 
 /**
  * Şantiye paneli. Erişim RLS ile belirlenir: kullanıcının göremediği bir şantiye

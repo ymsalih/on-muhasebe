@@ -18,7 +18,7 @@ type SiteCardData = {
 
 /**
  * Şantiye seçim ekranı (CLAUDE.md 7.3-B). Liste RLS ile süzülür: ortak yalnızca üyesi olduğu,
- * admin tüm şantiyeleri görür. Kartlardaki "bu ay net bakiye" özeti kasa tablosu geldiğinde (Faz 7) eklenecek.
+ * admin tüm şantiyeleri (salt görüntüleme) görür. "Yeni Şantiye Ekle" her ortağın işidir; admin ekleyemez. Kartlardaki "bu ay net bakiye" özeti kasa tablosu geldiğinde (Faz 7) eklenecek.
  */
 export default async function SitesPage() {
   const profile = await requireUser();
@@ -37,20 +37,20 @@ export default async function SitesPage() {
       <div className="mx-auto flex max-w-sm flex-col items-center gap-3 py-16 text-center">
         <Building2 className="size-10 text-muted-foreground" aria-hidden />
         <h2 className="text-lg font-semibold">
-          {isAdmin ? "Henüz şantiye eklenmedi" : "Henüz erişebildiğiniz bir şantiye yok"}
+          {isAdmin ? "Henüz şantiye yok" : "Henüz bir şantiyeniz yok"}
         </h2>
         <p className="text-sm text-muted-foreground">
           {isAdmin
-            ? "İlk şantiyeyi ekleyip ortakları ona atayabilirsiniz."
-            : "Yöneticiniz sizi bir şantiyeye eklediğinde burada görünecek."}
+            ? "Şantiyeleri ortaklar kendi panellerinden oluşturur."
+            : "İlk şantiyenizi ekleyin. Ekleyen kişi şantiyenin sahibi olur; diğer ortakları sonra ekleyebilirsiniz."}
         </p>
-        {isAdmin && (
+        {!isAdmin && (
           <Link
-            href="/admin/santiyeler/yeni"
+            href="/sites/yeni"
             className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
           >
             <Plus className="size-4" aria-hidden />
-            İlk şantiyeyi ekle
+            İlk şantiyemi ekle
           </Link>
         )}
       </div>
@@ -59,7 +59,9 @@ export default async function SitesPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Çalışmak istediğiniz şantiyeyi seçin.</p>
+      <p className="text-sm text-muted-foreground">
+        {isAdmin ? "Tüm şantiyeler (salt görüntüleme)." : "Çalışmak istediğiniz şantiyeyi seçin."}
+      </p>
       <ul className="grid gap-3 md:max-w-2xl">
         {sites.map((site) => (
           <li key={site.id}>
@@ -105,10 +107,10 @@ export default async function SitesPage() {
           </li>
         ))}
 
-        {isAdmin && (
+        {!isAdmin && (
           <li>
             <Link
-              href="/admin/santiyeler/yeni"
+              href="/sites/yeni"
               className="flex min-h-16 items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground"
             >
               <Plus className="size-5" aria-hidden />

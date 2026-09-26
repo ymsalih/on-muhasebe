@@ -13,6 +13,7 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  UserPlus,
   Users,
   Wallet,
   BarChart3,
@@ -65,6 +66,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       ] satisfies NavItem[],
       // "Daha Fazla" içine toplanan ekranlar
       more: [
+        { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
         { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: false },
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: false },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: false },

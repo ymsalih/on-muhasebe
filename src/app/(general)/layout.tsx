@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { requireUser } from "@/lib/auth/session";
-import { getAccessibleSites } from "@/lib/sites";
+import { getAccessibleSites } from "@/lib/sites/queries";
 
 /** Şantiye seçilmeden önceki genel görünüm: admin paneli ve şantiye listesi. */
 export default async function GeneralLayout({ children }: { children: React.ReactNode }) {
