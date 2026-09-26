@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { PersonnelForm } from "@/components/personnel/personnel-form";
 import { requireUser } from "@/lib/auth/session";
 import { listParties } from "@/lib/goods/queries";
+import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
 export const metadata: Metadata = { title: "Yeni Personel — Şantiye Ön Muhasebe" };
@@ -32,6 +33,7 @@ export default async function NewPersonPage({ params }: { params: Promise<{ site
         hasTcNo={false}
         hasIban={false}
         canDelete={false}
+        today={todayInIstanbul()}
         initial={{
           fullName: "",
           tcNo: "",

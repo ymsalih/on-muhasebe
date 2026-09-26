@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { listParties } from "@/lib/goods/queries";
 import { getPerson } from "@/lib/personnel/queries";
+import { describeStatus, effectiveStatus, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
 export const metadata: Metadata = { title: "Personel Detayı — Şantiye Ön Muhasebe" };
@@ -33,6 +34,9 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   if (!person) notFound();
 
   const canWrite = canWriteRole(role);
+  const today = todayInIstanbul();
+  const eff = effectiveStatus(person, today);
+  const statusNote = describeStatus(eff);
   const back = (
     <Link href={`/sites/${siteId}/personel`} className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
       <ArrowLeft className="size-4" aria-hidden />
@@ -47,8 +51,9 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
         {back}
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold">{person.full_name}</h1>
-          <StatusBadge status={person.status} />
+          <StatusBadge status={eff.status} />
         </div>
+        {statusNote && <p className="text-sm text-muted-foreground">{statusNote}</p>}
         <PersonnelForm
           siteId={siteId}
           personId={person.id}
@@ -56,6 +61,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
           hasTcNo={person.has_tc_no}
           hasIban={person.has_iban}
           canDelete={role === "owner"}
+          today={today}
           initial={{
             fullName: person.full_name,
             tcNo: "",
@@ -64,7 +70,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
             insuranceCompany: person.insurance_company ?? "",
             job: person.job ?? "",
             duty: person.duty ?? "",
-            status: person.status,
+            status: person.status === "ayrildi" ? "ayrildi" : "aktif", // izinli/raporlu/geçici görev tarihlerden türetilir
             hireDate: person.hire_date ?? "",
             terminationDate: person.termination_date ?? "",
             tempAssignmentStart: person.temp_assignment_start ?? "",
@@ -88,8 +94,9 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
       {back}
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold">{person.full_name}</h1>
-        <StatusBadge status={person.status} />
+        <StatusBadge status={eff.status} />
       </div>
+      {statusNote && <p className="text-sm text-muted-foreground">{statusNote}</p>}
       <p className="text-sm text-muted-foreground">Bu kaydı yalnızca görüntüleyebilirsiniz.</p>
 
       <section className="space-y-3 rounded-xl border bg-card p-4">

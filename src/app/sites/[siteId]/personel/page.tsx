@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/personnel/status-badge";
 import { requireUser } from "@/lib/auth/session";
 import { PERSON_STATUSES, PERSON_STATUS_LABELS, type PersonStatus } from "@/lib/personnel/schemas";
 import { PERSON_LIST_LIMIT, listPersonnel } from "@/lib/personnel/queries";
+import { effectiveStatus, shortNote, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,14 @@ export default async function PersonnelPage({
   const status = PERSON_STATUSES.find((s) => s === durum) as PersonStatus | undefined;
 
   const profile = await requireUser();
-  const [people, role] = await Promise.all([listPersonnel(siteId, { q, status }), getSiteRole(siteId, profile.id)]);
+  const [all, role] = await Promise.all([listPersonnel(siteId, { q }), getSiteRole(siteId, profile.id)]);
+
+  // Güncel durum, kayıtlı çalışma durumundan ve izin/rapor/geçici görev tarihlerinden bugüne göre türetilir.
+  const today = todayInIstanbul();
+  const enriched = all.map((p) => ({ p, eff: effectiveStatus(p, today) }));
+  const counts = new Map<PersonStatus, number>();
+  for (const { eff } of enriched) counts.set(eff.status, (counts.get(eff.status) ?? 0) + 1);
+  const people = status ? enriched.filter(({ eff }) => eff.status === status) : enriched;
   const canWrite = canWriteRole(role);
   const base = `/sites/${siteId}/personel`;
   const filtered = !!q || !!status;
@@ -83,6 +91,9 @@ export default async function PersonnelPage({
             )}
           >
             {s ? PERSON_STATUS_LABELS[s] : "Tümü"}
+            <span className={cn("ml-1.5 text-xs", status === s ? "opacity-80" : "text-muted-foreground")}>
+              {s ? (counts.get(s) ?? 0) : enriched.length}
+            </span>
           </Link>
         ))}
       </nav>
@@ -110,22 +121,23 @@ export default async function PersonnelPage({
         </div>
       ) : (
         <div className="divide-y rounded-xl border bg-card">
-          {people.map((p) => (
+          {people.map(({ p, eff }) => (
             <DataRow
               key={p.id}
               href={`${base}/${p.id}`}
               title={p.full_name}
-              badge={<StatusBadge status={p.status} />}
+              badge={<StatusBadge status={eff.status} />}
               lines={[
                 [p.job, p.duty].filter(Boolean).join(" · "),
                 [p.parties?.name, p.phone].filter(Boolean).join(" · "),
+                shortNote(eff),
               ]}
             />
           ))}
         </div>
       )}
 
-      {people.length >= PERSON_LIST_LIMIT && (
+      {all.length >= PERSON_LIST_LIMIT && (
         <p className="text-center text-xs text-muted-foreground">İlk {PERSON_LIST_LIMIT} kayıt gösteriliyor; aramayı daraltın.</p>
       )}
     </div>

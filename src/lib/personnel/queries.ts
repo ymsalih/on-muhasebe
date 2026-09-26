@@ -32,14 +32,14 @@ export type PersonRow = {
 
 export const PERSON_LIST_LIMIT = 500;
 
-export async function listPersonnel(
-  siteId: number,
-  filters: { q?: string; status?: PersonStatus },
-): Promise<PersonRow[]> {
+/**
+ * Duruma göre süzme burada YAPILMAZ: güncel durum izin/rapor tarihlerinden türetilir (lib/personnel/status.ts),
+ * bu yüzden çağıran taraf effectiveStatus ile süzer.
+ */
+export async function listPersonnel(siteId: number, filters: { q?: string }): Promise<PersonRow[]> {
   const supabase = await createClient();
   let query = supabase.from("personnel").select(PERSON_COLUMNS).eq("site_id", siteId);
 
-  if (filters.status) query = query.eq("status", filters.status);
   if (filters.q) {
     // % ve _ joker olarak yorumlanmasın
     const escaped = filters.q.replace(/[\\%_]/g, (c) => `\\${c}`);

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeIban, personnelSchema, type PersonnelValues } from "@/lib/personnel/schemas";
+import { daysBetween } from "@/lib/personnel/status";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -26,19 +27,29 @@ function mapError(error: { code?: string }): string {
 }
 
 function toRow(v: PersonnelValues) {
+  // Gün sayısı boş bırakıldıysa tarihlerden hesaplanır (en geç başlangıç → işe dönüş).
+  const latestStart = [v.leaveStart, v.reportStart, v.tempAssignmentStart].filter(Boolean).sort().at(-1);
+  const absenceDays =
+    v.absenceDaysCount !== ""
+      ? Number(v.absenceDaysCount)
+      : latestStart && v.returnDate
+        ? daysBetween(latestStart, v.returnDate)
+        : null;
+
   const row: Record<string, string | number | null> = {
     full_name: v.fullName,
     employer_party_id: v.employerPartyId ? Number(v.employerPartyId) : null,
     insurance_company: v.insuranceCompany || null,
     job: v.job || null,
     duty: v.duty || null,
+    // Yalnızca 'aktif' / 'ayrildi' saklanır; izinli/raporlu/geçici görev tarihlerden türetilir (lib/personnel/status.ts).
     status: v.status,
     hire_date: v.hireDate || null,
     termination_date: v.terminationDate || null,
     temp_assignment_start: v.tempAssignmentStart || null,
     report_start: v.reportStart || null,
     leave_start: v.leaveStart || null,
-    absence_days_count: v.absenceDaysCount === "" ? null : Number(v.absenceDaysCount),
+    absence_days_count: absenceDays,
     return_date: v.returnDate || null,
     phone: v.phone || null,
   };

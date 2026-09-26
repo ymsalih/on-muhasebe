@@ -10,6 +10,12 @@ export const PERSON_STATUS_LABELS: Record<PersonStatus, string> = {
   ayrildi: "Ayrıldı",
 };
 
+/**
+ * Elle seçilen "çalışma durumu": yalnızca Aktif veya Ayrıldı. İzinli / Raporlu / Geçici Görevde durumu
+ * izin, rapor ve geçici görev TARİHLERİNDEN otomatik türetilir (bkz. lib/personnel/status.ts).
+ */
+export const BASE_STATUSES = ["aktif", "ayrildi"] as const;
+
 /** "TR33 0006 …" → "TR330006…" (boşluk temizlenir, büyük harf). */
 export function normalizeIban(raw: string): string {
   return raw.replace(/\s+/g, "").toUpperCase();
@@ -50,7 +56,7 @@ export const personnelSchema = z
     insuranceCompany: z.string().trim().max(150, "En fazla 150 karakter olabilir."),
     job: z.string().trim().max(100, "En fazla 100 karakter olabilir."),
     duty: z.string().trim().max(100, "En fazla 100 karakter olabilir."),
-    status: z.enum(PERSON_STATUSES, "Durum seçin."),
+    status: z.enum(BASE_STATUSES, "Çalışma durumunu seçin."),
     hireDate: optionalDate,
     terminationDate: optionalDate,
     tempAssignmentStart: optionalDate,
@@ -75,6 +81,20 @@ export const personnelSchema = z
     }
     if (v.hireDate && v.terminationDate && v.terminationDate < v.hireDate) {
       ctx.addIssue({ code: "custom", path: ["terminationDate"], message: "İşten çıkış tarihi işe giriş tarihinden önce olamaz." });
+    }
+    const latestStart = [v.leaveStart, v.reportStart, v.tempAssignmentStart].filter(Boolean).sort().at(-1);
+    if (v.returnDate && !latestStart) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["returnDate"],
+        message: "İşe dönüş tarihi için önce izin, rapor veya geçici görev başlangıcı girin.",
+      });
+    } else if (v.returnDate && latestStart && v.returnDate <= latestStart) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["returnDate"],
+        message: "İşe dönüş tarihi, izin/rapor/geçici görev başlangıcından sonra olmalı.",
+      });
     }
   });
 export type PersonnelValues = z.infer<typeof personnelSchema>;

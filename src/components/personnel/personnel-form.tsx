@@ -14,7 +14,9 @@ import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import { SensitiveField } from "@/components/personnel/sensitive-field";
 import type { PartyOption } from "@/lib/goods/actions";
 import { deletePersonnel, savePersonnel } from "@/lib/personnel/actions";
-import { PERSON_STATUSES, PERSON_STATUS_LABELS, personnelSchema, type PersonnelValues } from "@/lib/personnel/schemas";
+import { BASE_STATUSES, PERSON_STATUS_LABELS, personnelSchema, type PersonnelValues } from "@/lib/personnel/schemas";
+import { StatusBadge } from "@/components/personnel/status-badge";
+import { daysBetween, describeStatus, effectiveStatus, latestAbsenceStart } from "@/lib/personnel/status";
 
 const selectClass =
   "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
@@ -33,6 +35,7 @@ export function PersonnelForm({
   hasIban,
   parties: initialParties,
   canDelete,
+  today,
 }: {
   siteId: number;
   personId?: number;
@@ -41,6 +44,8 @@ export function PersonnelForm({
   hasIban: boolean;
   parties: PartyOption[];
   canDelete: boolean;
+  /** Türkiye'nin bugünü (yyyy-mm-dd); güncel durum önizlemesi için. */
+  today: string;
 }) {
   const router = useRouter();
   const listHref = `/sites/${siteId}/personel`;
@@ -57,6 +62,31 @@ export function PersonnelForm({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<PersonnelValues>({ resolver: zodResolver(personnelSchema), defaultValues: initial });
+
+  // Kaydetmeden önce, girilen tarihlere göre kişinin bugünkü durumunu canlı göster.
+  const w = watch();
+  const eff = effectiveStatus(
+    {
+      status: w.status,
+      termination_date: w.terminationDate || null,
+      temp_assignment_start: w.tempAssignmentStart || null,
+      report_start: w.reportStart || null,
+      leave_start: w.leaveStart || null,
+      return_date: w.returnDate || null,
+      absence_days_count: /^\d+$/.test(w.absenceDaysCount) ? Number(w.absenceDaysCount) : null,
+    },
+    today,
+  );
+  const statusNote = describeStatus(eff);
+  const startForDays = latestAbsenceStart({
+    temp_assignment_start: w.tempAssignmentStart || null,
+    report_start: w.reportStart || null,
+    leave_start: w.leaveStart || null,
+  });
+  const autoDays =
+    w.absenceDaysCount === "" && startForDays && w.returnDate && w.returnDate > startForDays
+      ? daysBetween(startForDays, w.returnDate)
+      : null;
 
   async function onSubmit(values: PersonnelValues) {
     setFormError(null);
@@ -147,15 +177,18 @@ export function PersonnelForm({
 
       <fieldset className={groupClass}>
         <legend className="px-1 text-sm font-semibold">Durum / İzin Bilgileri</legend>
-        <Field id="status" label="Durumu" error={errors.status?.message}>
+        <Field id="status" label="Çalışma durumu" error={errors.status?.message}>
           <select id="status" className={selectClass} {...register("status")}>
-            {PERSON_STATUSES.map((s) => (
+            {BASE_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {PERSON_STATUS_LABELS[s]}
               </option>
             ))}
           </select>
         </Field>
+        <p className="-mt-2 text-xs text-muted-foreground">
+          İzinli, Raporlu ve Geçici Görevde durumları aşağıdaki tarihlerden otomatik belirlenir.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           {text("tempAssignmentStart", "Geçici görev başlangıcı", { type: "date" })}
           {text("reportStart", "Rapor başlangıcı", { type: "date" })}
@@ -163,6 +196,16 @@ export function PersonnelForm({
           {text("returnDate", "İşe dönüş tarihi", { type: "date" })}
         </div>
         {text("absenceDaysCount", "Geçici görev / rapor / izin gün sayısı", { inputMode: "numeric" })}
+        {autoDays !== null && (
+          <p className="-mt-2 text-xs text-muted-foreground">Boş bırakırsanız {autoDays} gün olarak hesaplanır.</p>
+        )}
+
+        <div className="space-y-2 rounded-lg bg-muted/50 p-3" aria-live="polite">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            Bugünkü durum: <StatusBadge status={eff.status} />
+          </div>
+          {statusNote && <p className="text-sm text-muted-foreground">{statusNote}</p>}
+        </div>
       </fieldset>
 
       <fieldset className={groupClass}>
