@@ -24,14 +24,15 @@ export default async function SitePartnersPage({ params }: { params: Promise<{ s
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
   const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("site_members")
-    .select("id, user_id, role, share_percentage, users(full_name, email)")
-    .eq("site_id", siteId)
-    .order("joined_at");
+  const [profile, { data }] = await Promise.all([
+    requireUser(),
+    supabase
+      .from("site_members")
+      .select("id, user_id, role, share_percentage, users(full_name, email)")
+      .eq("site_id", siteId)
+      .order("joined_at"),
+  ]);
   const rows = (data as Row[] | null) ?? [];
 
   const members: MemberRow[] = rows.map((r) => ({

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth/session";
+import { requireAuthId } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIstanbul, workAvailability, type WorkInput } from "@/lib/personnel/status";
 
@@ -23,7 +23,7 @@ const inputSchema = z.object({
  * "o tarihte çalışamayacak" kişilerin (izinli, raporlu, ayrılmış…) işaretlenmesi engellenir.
  */
 export async function saveAttendance(input: z.input<typeof inputSchema>): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
 
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Geçersiz istek." };
@@ -81,7 +81,7 @@ const noteSchema = z.object({
 
 /** İşaretlenmiş bir güne kısa not ekler/günceller/siler (boş not = sil). Yetki RLS'tedir (yalnızca `note` sütunu güncellenebilir). */
 export async function setAttendanceNote(input: z.input<typeof noteSchema>): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
   const parsed = noteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Geçersiz istek." };
   const { siteId, date, personnelId, note } = parsed.data;

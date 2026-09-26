@@ -28,9 +28,12 @@ export default async function SiteHomePage({ params }: { params: Promise<{ siteI
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
-  const canWrite = canWriteRole(await getSiteRole(siteId, profile.id));
-  const presentToday = await countPresent(siteId, todayInIstanbul());
+  const [, role, presentToday] = await Promise.all([
+    requireUser(),
+    getSiteRole(siteId),
+    countPresent(siteId, todayInIstanbul()),
+  ]);
+  const canWrite = canWriteRole(role);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

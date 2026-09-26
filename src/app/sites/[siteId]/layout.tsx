@@ -18,8 +18,7 @@ export default async function SiteLayout({
   const id = Number(siteId);
   if (!Number.isInteger(id)) notFound();
 
-  const profile = await requireUser();
-  const sites = await getAccessibleSites();
+  const [profile, sites] = await Promise.all([requireUser(), getAccessibleSites()]);
   const site = sites.find((s) => s.id === id);
   if (!site) notFound();
 

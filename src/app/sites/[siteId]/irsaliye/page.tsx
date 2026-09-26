@@ -38,8 +38,7 @@ export default async function GoodsEntriesPage({
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
-  const [entries, role] = await Promise.all([listEntries(siteId), getSiteRole(siteId, profile.id)]);
+  const [, entries, role] = await Promise.all([requireUser(), listEntries(siteId), getSiteRole(siteId)]);
   const canWrite = canWriteRole(role);
   const view = gorunum === "tarih" ? "tarih" : "firma";
   const base = `/sites/${siteId}/irsaliye`;

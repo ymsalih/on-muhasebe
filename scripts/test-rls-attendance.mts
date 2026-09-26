@@ -155,6 +155,22 @@ try {
   check("özet: admin görüntüleyebilir", (await c.admin.from("monthly_attendance_summary").select("personnel_id").eq("site_id", siteA)).data?.length! > 0);
   check("özet: anonim okuyamaz", denied(await createClient(url, anon).from("monthly_attendance_summary").select("personnel_id")));
 
+  // ---------- get_month_attendance RPC (aylık ekran tek çağrı) ----------
+  type MonthRow = { personnel_id: number; days: string[]; notes: Record<string, string> };
+  const rpcOwner = await c.owner.rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today });
+  const rpcRows = (rpcOwner.data ?? []) as MonthRow[];
+  const mr1 = rpcRows.find((r) => r.personnel_id === a1);
+  check("RPC: kişi başına tek satır, işaretli günler ve not döner", !rpcOwner.error && !!mr1 && mr1.days.includes(today) && mr1.notes[today] === "yarım gün", JSON.stringify(rpcOwner));
+  check("RPC: gün sayısı özet view'i ile aynı", mr1?.days.length === days(a1, thisMonth));
+  check("RPC: günler artan sırada", !!mr1 && [...mr1.days].sort().join() === mr1.days.join());
+  check("RPC: notu olmayan kişinin notes alanı boş nesne", JSON.stringify(rpcRows.find((r) => r.personnel_id !== a1)?.notes ?? {}) === "{}");
+  check("RPC: viewer görebilir", ((await c.viewer.rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today })).data as unknown[] | null)?.length === rpcRows.length);
+  check("RPC: admin görüntüleyebilir", ((await c.admin.rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today })).data as unknown[] | null)?.length === rpcRows.length);
+  check("RPC: üye olmayan boş görür (RLS)", ((await c.outsider.rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today })).data as unknown[] | null)?.length === 0);
+  check("RPC: başka şantiyenin sahibi boş görür", ((await c.owner2.rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today })).data as unknown[] | null)?.length === 0);
+  check("RPC: anonim çağıramaz", !!(await createClient(url, anon).rpc("get_month_attendance", { p_site_id: siteA, p_first: thisMonth, p_last: today })).error);
+  check("RPC: tarih aralığı dışındaki günler gelmez", !((await c.owner.rpc("get_month_attendance", { p_site_id: siteA, p_first: today, p_last: today })).data as MonthRow[]).some((r) => r.days.some((d) => d !== today)));
+
   // ---------- personel silinince puantajı da silinir ----------
   await svc.from("personnel").delete().eq("id", a3);
   check("personel silinince puantajı da silinir (CASCADE)", ((await svc.from("attendance").select("id").eq("personnel_id", a3)).data?.length ?? 1) === 0);

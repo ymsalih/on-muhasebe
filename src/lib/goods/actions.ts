@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/session";
+import { requireAuthId } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   createPartySchema,
@@ -48,7 +48,7 @@ export async function saveGoodsEntry(
   entryId: number | null,
   input: GoodsEntryValues,
 ): Promise<Result<{ id: number }>> {
-  const profile = await requireUser();
+  const userId = await requireAuthId();
   if (!Number.isInteger(siteId)) return { ok: false, error: "Geçersiz şantiye." };
 
   const parsed = goodsEntrySchema.safeParse(input);
@@ -60,7 +60,7 @@ export async function saveGoodsEntry(
   if (entryId === null) {
     const { data, error } = await supabase
       .from("goods_entries")
-      .insert({ ...row, site_id: siteId, created_by: profile.id })
+      .insert({ ...row, site_id: siteId, created_by: userId })
       .select("id")
       .single();
     if (error || !data) return { ok: false, error: error ? mapError(error) : GENERIC_ERROR };
@@ -82,7 +82,7 @@ export async function saveGoodsEntry(
 }
 
 export async function deleteGoodsEntry(siteId: number, entryId: number): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(siteId) || !Number.isInteger(entryId)) return { ok: false, error: "Geçersiz istek." };
 
   const supabase = await createClient();
@@ -107,7 +107,7 @@ export async function createParty(input: {
   name: string;
   category: PartyCategory;
 }): Promise<Result<{ party: PartyOption }>> {
-  await requireUser();
+  await requireAuthId();
 
   const parsed = createPartySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Girilen bilgiler geçersiz." };

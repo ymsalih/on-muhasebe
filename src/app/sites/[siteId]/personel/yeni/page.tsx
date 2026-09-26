@@ -15,10 +15,8 @@ export default async function NewPersonPage({ params }: { params: Promise<{ site
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
-  if (!canWriteRole(await getSiteRole(siteId, profile.id))) redirect(`/sites/${siteId}/personel`);
-
-  const parties = await listParties(siteId);
+  const [, role, parties] = await Promise.all([requireUser(), getSiteRole(siteId), listParties(siteId)]);
+  if (!canWriteRole(role)) redirect(`/sites/${siteId}/personel`);
 
   return (
     <div className="space-y-4">

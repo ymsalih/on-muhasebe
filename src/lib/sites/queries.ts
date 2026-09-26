@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { getAuthUserId } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 export type SiteRef = { id: number; name: string; status: "active" | "closed" };
@@ -15,8 +16,10 @@ export const getAccessibleSites = cache(async (): Promise<SiteRef[]> => {
 });
 
 /** Kullanıcının bu şantiyedeki rolü; üye değilse (ör. admin) null. */
-export const getSiteRole = cache(async (siteId: number, userId: string): Promise<"owner" | "partner" | "viewer" | null> => {
-  const supabase = await createClient();
+export const getSiteRole = cache(async (siteId: number): Promise<"owner" | "partner" | "viewer" | null> => {
+  // Kimlik JWT'den yerel okunur: profil sorgusunu BEKLEMEDEN, onunla paralel çalışabilir.
+  const [userId, supabase] = await Promise.all([getAuthUserId(), createClient()]);
+  if (!userId) return null;
   const { data } = await supabase
     .from("site_members")
     .select("role")

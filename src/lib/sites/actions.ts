@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/session";
+import { requireAuthId, requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { addMemberSchema, createSiteSchema, type AddMemberValues, type CreateSiteValues } from "@/lib/sites/schemas";
 
@@ -42,7 +42,7 @@ export type UserSearchResult = { id: string; fullName: string; email: string };
 
 /** Şantiyeye eklenebilecek ortakları arar. Yalnızca şantiyenin sahibi kullanabilir (RPC içinde doğrulanır). */
 export async function searchUsersForSite(siteId: number, query: string): Promise<Result<{ users: UserSearchResult[] }>> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(siteId) || typeof query !== "string") return { ok: false, error: "Geçersiz istek." };
   if (query.trim().length < 2) return { ok: true, users: [] };
 
@@ -63,7 +63,7 @@ export async function searchUsersForSite(siteId: number, query: string): Promise
 
 /** Sahibi olduğu şantiyeye sistemde zaten hesabı olan bir ortağı üye olarak ekler. */
 export async function addSiteMember(input: AddMemberValues): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
 
   const parsed = addMemberSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Girilen bilgiler geçersiz." };
@@ -95,7 +95,7 @@ export async function addSiteMember(input: AddMemberValues): Promise<Result> {
 
 /** Sahip, sahip olmayan bir üyeyi şantiyeden çıkarır (RLS: owner satırı silinemez). */
 export async function removeSiteMember(siteId: number, memberId: number): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(siteId) || !Number.isInteger(memberId)) return { ok: false, error: "Geçersiz istek." };
 
   const supabase = await createClient();

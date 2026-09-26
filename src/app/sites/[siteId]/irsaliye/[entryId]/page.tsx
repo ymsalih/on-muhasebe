@@ -15,15 +15,14 @@ export default async function EditGoodsEntryPage({ params }: { params: Promise<{
   const entryId = Number(rawEntry);
   if (!Number.isInteger(siteId) || !Number.isInteger(entryId)) notFound();
 
-  const profile = await requireUser();
-  const role = await getSiteRole(siteId, profile.id);
-  if (!canWriteRole(role)) redirect(`/sites/${siteId}/irsaliye`);
-
-  const [entry, parties, suggestions] = await Promise.all([
+  const [, role, entry, parties, suggestions] = await Promise.all([
+    requireUser(),
+    getSiteRole(siteId),
     getEntry(siteId, entryId),
     listParties(siteId),
     getSuggestions(siteId),
   ]);
+  if (!canWriteRole(role)) redirect(`/sites/${siteId}/irsaliye`);
   if (!entry) notFound();
 
   const numText = (n: number | null) => (n === null ? "" : String(Number(n)));

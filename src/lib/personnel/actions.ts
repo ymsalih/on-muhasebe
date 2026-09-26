@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/session";
+import { requireAuthId } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeIban, personnelSchema, type PersonnelValues } from "@/lib/personnel/schemas";
 import { daysBetween } from "@/lib/personnel/status";
@@ -65,7 +65,7 @@ export async function savePersonnel(
   personId: number | null,
   input: PersonnelValues,
 ): Promise<Result<{ id: number }>> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(siteId)) return { ok: false, error: "Geçersiz şantiye." };
 
   const parsed = personnelSchema.safeParse(input);
@@ -96,7 +96,7 @@ export async function savePersonnel(
 
 /** Yalnızca şantiye sahibi siler (RLS). Silmek personelin puantaj geçmişini de siler; normal çıkış için durum 'Ayrıldı' yapılır. */
 export async function deletePersonnel(siteId: number, personId: number): Promise<Result> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(siteId) || !Number.isInteger(personId)) return { ok: false, error: "Geçersiz istek." };
 
   const supabase = await createClient();
@@ -122,7 +122,7 @@ export async function deletePersonnel(siteId: number, personId: number): Promise
 export async function revealPersonnelSensitive(
   personId: number,
 ): Promise<Result<{ tcNo: string | null; iban: string | null }>> {
-  await requireUser();
+  await requireAuthId();
   if (!Number.isInteger(personId)) return { ok: false, error: "Geçersiz istek." };
 
   const supabase = await createClient();

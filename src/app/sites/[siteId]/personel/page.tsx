@@ -29,8 +29,7 @@ export default async function PersonnelPage({
   const q = rawQ?.trim().slice(0, 100) || undefined;
   const status = PERSON_STATUSES.find((s) => s === durum) as PersonStatus | undefined;
 
-  const profile = await requireUser();
-  const [all, role] = await Promise.all([listPersonnel(siteId, { q }), getSiteRole(siteId, profile.id)]);
+  const [, all, role] = await Promise.all([requireUser(), listPersonnel(siteId, { q }), getSiteRole(siteId)]);
 
   // Güncel durum, kayıtlı çalışma durumundan ve izin/rapor/geçici görev tarihlerinden bugüne göre türetilir.
   const today = todayInIstanbul();

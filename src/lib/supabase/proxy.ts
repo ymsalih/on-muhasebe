@@ -1,16 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { debugFetch } from "@/lib/supabase/debug-fetch";
 
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/auth/callback"];
 
 /** Oturum çerezlerini yeniler; giriş yapmamış kullanıcıyı /login'e yönlendirir. */
 export async function updateSession(request: NextRequest) {
+  if (debugFetch) console.log(`[req] ${request.method} ${request.nextUrl.pathname}${request.nextUrl.search}${request.headers.get("rsc") ? " (rsc)" : ""}${request.headers.get("next-router-prefetch") ? " (prefetch)" : ""}`);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      global: { fetch: debugFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();

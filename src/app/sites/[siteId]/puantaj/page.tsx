@@ -33,7 +33,6 @@ export default async function AttendancePage({
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
   const today = todayInIstanbul();
   const monthly = sp.gorunum === "aylik";
   const base = `/sites/${siteId}/puantaj`;
@@ -62,15 +61,25 @@ export default async function AttendancePage({
     </div>
   );
 
-  const [people, role] = await Promise.all([listAttendancePeople(siteId), getSiteRole(siteId, profile.id)]);
+  const currentYm = today.slice(0, 7);
+  const ym = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.ay ?? "") && sp.ay! <= currentYm ? sp.ay! : currentYm;
+  const [y, m] = ym.split("-").map(Number);
+  const last = `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.tarih ?? "") && sp.tarih! <= today ? sp.tarih! : today;
+
+  // Görünüme göre gereken TÜM veri, kimlik doğrulamayla birlikte (paralel) istenir; art arda beklemek her geçişe
+  // bir ağ turu daha ekler.
+  const [, people, role, monthData, presentRows] = await Promise.all([
+    requireUser(),
+    listAttendancePeople(siteId),
+    getSiteRole(siteId),
+    monthly ? getMonthData(siteId, `${ym}-01`, last) : Promise.resolve(null),
+    monthly ? Promise.resolve(null) : listPresent(siteId, date),
+  ]);
 
   // ---------------- Aylık Özet ----------------
   if (monthly) {
-    const currentYm = today.slice(0, 7);
-    const ym = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.ay ?? "") && sp.ay! <= currentYm ? sp.ay! : currentYm;
-    const [y, m] = ym.split("-").map(Number);
-    const last = `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
-    const data = await getMonthData(siteId, `${ym}-01`, last);
+    const data = monthData!;
     const prev = shiftMonth(ym, -1);
     const next = shiftMonth(ym, 1);
     const monthHref = (v: string) => `${base}?gorunum=aylik&ay=${v}`;
@@ -107,10 +116,9 @@ export default async function AttendancePage({
   }
 
   // ---------------- Günlük Gelenler ----------------
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.tarih ?? "") && sp.tarih! <= today ? sp.tarih! : today;
-  const presentRows = await listPresent(siteId, date);
-  const present = new Set(presentRows.map((r) => r.personnelId));
-  const presentMeta: PresentMeta[] = presentRows.map((r) => ({ id: r.personnelId, note: r.note, markedBy: r.markedBy, markedAt: r.markedAt }));
+  const dailyRows = presentRows!;
+  const present = new Set(dailyRows.map((r) => r.personnelId));
+  const presentMeta: PresentMeta[] = dailyRows.map((r) => ({ id: r.personnelId, note: r.note, markedBy: r.markedBy, markedAt: r.markedAt }));
 
   const list: DailyPerson[] = [];
   const excluded: ExcludedPerson[] = [];

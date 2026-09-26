@@ -29,8 +29,12 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   const personId = Number(rawPerson);
   if (!Number.isInteger(siteId) || !Number.isInteger(personId)) notFound();
 
-  const profile = await requireUser();
-  const [person, role] = await Promise.all([getPerson(siteId, personId), getSiteRole(siteId, profile.id)]);
+  const [profile, person, role, parties] = await Promise.all([
+    requireUser(),
+    getPerson(siteId, personId),
+    getSiteRole(siteId),
+    listParties(siteId),
+  ]);
   if (!person) notFound();
 
   const canWrite = canWriteRole(role);
@@ -45,7 +49,6 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   );
 
   if (canWrite) {
-    const parties = await listParties(siteId);
     return (
       <div className="space-y-4">
         {back}

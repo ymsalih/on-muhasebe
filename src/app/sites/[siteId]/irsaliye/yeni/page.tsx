@@ -14,11 +14,13 @@ export default async function NewGoodsEntryPage({ params }: { params: Promise<{ 
   const siteId = Number(rawId);
   if (!Number.isInteger(siteId)) notFound();
 
-  const profile = await requireUser();
-  const role = await getSiteRole(siteId, profile.id);
+  const [, role, parties, suggestions] = await Promise.all([
+    requireUser(),
+    getSiteRole(siteId),
+    listParties(siteId),
+    getSuggestions(siteId),
+  ]);
   if (!canWriteRole(role)) redirect(`/sites/${siteId}/irsaliye`); // viewer ve admin kayıt ekleyemez
-
-  const [parties, suggestions] = await Promise.all([listParties(siteId), getSuggestions(siteId)]);
   // Sunucu saat diliminden bağımsız olarak Türkiye'nin bugünü (yyyy-mm-dd)
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
 

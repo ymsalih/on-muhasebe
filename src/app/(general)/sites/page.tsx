@@ -21,15 +21,16 @@ type SiteCardData = {
  * admin tüm şantiyeleri (salt görüntüleme) görür. "Yeni Şantiye Ekle" her ortağın işidir; admin ekleyemez. Kartlardaki "bu ay net bakiye" özeti kasa tablosu geldiğinde (Faz 7) eklenecek.
  */
 export default async function SitesPage() {
-  const profile = await requireUser();
-  const isAdmin = profile.role === "admin";
-
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("sites")
-    .select("id, name, address, start_date, status")
-    .order("status") // 'active' 'closed'tan önce gelir
-    .order("name");
+  const [profile, { data }] = await Promise.all([
+    requireUser(),
+    supabase
+      .from("sites")
+      .select("id, name, address, start_date, status")
+      .order("status") // 'active' 'closed'tan önce gelir
+      .order("name"),
+  ]);
+  const isAdmin = profile.role === "admin";
   const sites = (data as SiteCardData[] | null) ?? [];
 
   if (sites.length === 0) {
