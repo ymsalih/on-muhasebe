@@ -11,6 +11,13 @@ export function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
 }
 
+const numberFormatter = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
+
+/** Miktar gibi para olmayan sayılar: 1.250,5 */
+export function formatNumber(value: number): string {
+  return numberFormatter.format(value);
+}
+
 /** "YYYY-MM-DD" (DATE sütunu) veya ISO zaman damgası kabul eder; saat dilimi kayması olmaz. */
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";

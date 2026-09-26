@@ -13,3 +13,20 @@ export const getAccessibleSites = cache(async (): Promise<SiteRef[]> => {
   const { data } = await supabase.from("sites").select("id, name, status").order("name");
   return (data as SiteRef[] | null) ?? [];
 });
+
+/** Kullanıcının bu şantiyedeki rolü; üye değilse (ör. admin) null. */
+export const getSiteRole = cache(async (siteId: number, userId: string): Promise<"owner" | "partner" | "viewer" | null> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("site_members")
+    .select("role")
+    .eq("site_id", siteId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data?.role as "owner" | "partner" | "viewer" | undefined) ?? null;
+});
+
+/** Veri yazma yetkisi: yalnızca owner ve partner. Viewer ve admin salt okur (RLS aynısını zorlar; bu yalnızca arayüz içindir). */
+export function canWriteRole(role: "owner" | "partner" | "viewer" | null): boolean {
+  return role === "owner" || role === "partner";
+}
