@@ -26,7 +26,7 @@ export function SensitiveField({
   personId,
   hasValue,
   canReveal,
-  value,
+  value = "",
   onChange,
   error,
   inputMode,
@@ -40,8 +40,9 @@ export function SensitiveField({
   personId?: number;
   hasValue: boolean;
   canReveal: boolean;
-  value: string;
-  onChange: (value: string, changed: boolean) => void;
+  /** Salt görüntülemede (readOnly) gerekmez. */
+  value?: string;
+  onChange?: (value: string, changed: boolean) => void;
   error?: string;
   inputMode?: "numeric" | "text";
   maxLength?: number;
@@ -81,12 +82,12 @@ export function SensitiveField({
     if (timer.current) clearTimeout(timer.current);
     setRevealed(null);
     setMode("editing");
-    onChange(prefill, true);
+    onChange?.(prefill, true);
   }
 
   function cancelEdit() {
     setMode("masked");
-    onChange("", false);
+    onChange?.("", false);
   }
 
   const shown = revealed ? (kind === "iban" ? formatIban(revealed) : revealed) : "";
@@ -99,7 +100,7 @@ export function SensitiveField({
             <Input
               id={id}
               value={value}
-              onChange={(e) => onChange(e.target.value, true)}
+              onChange={(e) => onChange?.(e.target.value, true)}
               inputMode={inputMode}
               maxLength={maxLength}
               autoComplete="off"

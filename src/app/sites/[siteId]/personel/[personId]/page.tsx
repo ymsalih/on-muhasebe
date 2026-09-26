@@ -94,7 +94,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
 
       <section className="space-y-3 rounded-xl border bg-card p-4">
         <h2 className="text-sm font-semibold">Kimlik Bilgileri</h2>
-        <SensitiveField id="tcNo" label="TC kimlik no" kind="tcNo" personId={person.id} hasValue={person.has_tc_no} canReveal={canReveal} readOnly value="" onChange={() => {}} />
+        <SensitiveField id="tcNo" label="TC kimlik no" kind="tcNo" personId={person.id} hasValue={person.has_tc_no} canReveal={canReveal} readOnly />
       </section>
       <section className="rounded-xl border bg-card p-4">
         <h2 className="mb-1 text-sm font-semibold">İstihdam Bilgileri</h2>
@@ -119,7 +119,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
       </section>
       <section className="space-y-3 rounded-xl border bg-card p-4">
         <h2 className="text-sm font-semibold">Ödeme Bilgileri</h2>
-        <SensitiveField id="iban" label="IBAN" kind="iban" personId={person.id} hasValue={person.has_iban} canReveal={canReveal} readOnly value="" onChange={() => {}} />
+        <SensitiveField id="iban" label="IBAN" kind="iban" personId={person.id} hasValue={person.has_iban} canReveal={canReveal} readOnly />
         <dl>
           <Item label="Telefon" value={person.phone} />
         </dl>
