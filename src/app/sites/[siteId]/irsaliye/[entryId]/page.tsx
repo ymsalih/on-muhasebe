@@ -51,6 +51,7 @@ export default async function EditGoodsEntryPage({ params }: { params: Promise<{
           unit: entry.unit ?? "",
           variant: entry.variant ?? "",
           quantity: numText(entry.quantity),
+          unitPrice: numText(entry.unit_price),
           usedLocation: entry.used_location ?? "",
           purchaseLocation: entry.purchase_location ?? "",
           transportCost: Number(entry.transport_cost) === 0 ? "" : numText(entry.transport_cost),

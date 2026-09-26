@@ -12,10 +12,11 @@ export type PartyBalance = {
   total_turnover: number;
   transaction_count: number;
   last_transaction_date: string | null;
+  total_invoiced: number;
 };
 
 const BALANCE_COLUMNS =
-  "party_id, name, category, total_income, total_expense, balance, total_turnover, transaction_count, last_transaction_date";
+  "party_id, name, category, total_income, total_expense, balance, total_turnover, transaction_count, last_transaction_date, total_invoiced";
 
 /** Şantiyenin tüm carileri ve bakiyeleri (party_balances view'i: hesaplanan alanlar tabloda tutulmaz). */
 export async function listPartyBalances(siteId: number): Promise<PartyBalance[]> {
@@ -39,6 +40,7 @@ function normalize(r: PartyBalance): PartyBalance {
     total_expense: Number(r.total_expense),
     balance: Number(r.balance),
     total_turnover: Number(r.total_turnover),
+    total_invoiced: Number(r.total_invoiced),
   };
 }
 

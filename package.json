@@ -15,6 +15,7 @@
     "test:status": "tsx scripts/test-personnel-status.mts",
     "test:rls:attendance": "tsx scripts/test-rls-attendance.mts",
     "test:rls:transactions": "tsx scripts/test-rls-transactions.mts",
+    "test:rls:prices": "tsx scripts/test-rls-prices.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },
   "dependencies": {

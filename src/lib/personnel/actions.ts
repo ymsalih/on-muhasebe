@@ -52,6 +52,7 @@ function toRow(v: PersonnelValues) {
     absence_days_count: absenceDays,
     return_date: v.returnDate || null,
     phone: v.phone || null,
+    daily_wage: v.dailyWage === "" ? null : Number(v.dailyWage.replace(",", ".")),
   };
   // Hassas alanlar yalnızca kullanıcı bilerek değiştirdiyse yazılır; aksi halde mevcut değere dokunulmaz.
   if (v.tcNoChanged) row.tc_no = v.tcNo === "" ? null : v.tcNo;

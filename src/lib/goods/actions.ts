@@ -32,6 +32,7 @@ function toRow(values: GoodsEntryValues) {
     unit: values.unit || null,
     variant: values.variant || null,
     quantity: toDbNumber(values.quantity),
+    unit_price: toDbNumber(values.unitPrice),
     used_location: values.usedLocation || null,
     purchase_location: values.purchaseLocation || null,
     transport_cost: toDbNumber(values.transportCost) ?? 0,

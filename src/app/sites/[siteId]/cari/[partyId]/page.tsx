@@ -99,6 +99,24 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
           <BalanceAmount balance={balance.balance} className={cn("mt-1 text-lg", balanceTone(balance.balance))} />
         </div>
       </section>
+      {balance.total_invoiced > 0 && (
+        <section aria-label="Fatura ve borç durumu" className="grid grid-cols-3 gap-3 rounded-xl border bg-card p-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Faturalanan (irsaliye)</p>
+            <p className="mt-1 text-base font-semibold tabular-nums">{formatCurrency(balance.total_invoiced)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Ödenen</p>
+            <p className="mt-1 text-base font-semibold tabular-nums text-orange-700 dark:text-orange-400">{formatCurrency(balance.total_expense)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{balance.total_invoiced - balance.total_expense >= 0 ? "Kalan borç" : "Fazla ödeme"}</p>
+            <p className={cn("mt-1 text-base font-semibold tabular-nums", balance.total_invoiced - balance.total_expense > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
+              {formatCurrency(Math.abs(balance.total_invoiced - balance.total_expense))}
+            </p>
+          </div>
+        </section>
+      )}
       <p className="-mt-2 text-xs text-muted-foreground">Bakiye = Tahsilat − Ödeme. Yeşil: tahsilat fazla · Kırmızı: ödeme fazla.</p>
 
       <PartyTransactions

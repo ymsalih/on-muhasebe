@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PersonnelForm } from "@/components/personnel/personnel-form";
 import { SensitiveField } from "@/components/personnel/sensitive-field";
+import { PersonPayments, type PaymentRow } from "@/components/personnel/person-payments";
 import { StatusBadge } from "@/components/personnel/status-badge";
 import { requireUser } from "@/lib/auth/session";
-import { formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { listParties } from "@/lib/goods/queries";
+import { listPersonPayments } from "@/lib/personnel/payments";
 import { getPerson } from "@/lib/personnel/queries";
 import { describeStatus, effectiveStatus, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
@@ -29,15 +31,37 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   const personId = Number(rawPerson);
   if (!Number.isInteger(siteId) || !Number.isInteger(personId)) notFound();
 
-  const [profile, person, role, parties] = await Promise.all([
+  const [profile, person, role, parties, paymentList] = await Promise.all([
     requireUser(),
     getPerson(siteId, personId),
     getSiteRole(siteId),
     listParties(siteId),
+    listPersonPayments(siteId, personId),
   ]);
   if (!person) notFound();
 
   const canWrite = canWriteRole(role);
+  const payments: PaymentRow[] = paymentList.map((p) => ({
+    id: p.id,
+    amount: p.amount,
+    date: p.transaction_date,
+    method: p.payment_method,
+    workDays: p.work_days,
+    dailyRate: p.daily_rate,
+    periodMonth: p.period_month ? p.period_month.slice(0, 7) : null,
+    description: p.description,
+  }));
+  const paymentsSection = (
+    <PersonPayments
+      siteId={siteId}
+      personId={personId}
+      personName={person.full_name}
+      dailyWage={person.daily_wage === null ? null : Number(person.daily_wage)}
+      payments={payments}
+      canWrite={canWrite}
+      today={todayInIstanbul()}
+    />
+  );
   const today = todayInIstanbul();
   const eff = effectiveStatus(person, today);
   const statusNote = describeStatus(eff);
@@ -84,8 +108,10 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
             iban: "",
             ibanChanged: false,
             phone: person.phone ?? "",
+            dailyWage: person.daily_wage === null ? "" : String(person.daily_wage).replace(".", ","),
           }}
         />
+        {paymentsSection}
       </div>
     );
   }
@@ -132,8 +158,10 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
         <SensitiveField id="iban" label="IBAN" kind="iban" personId={person.id} hasValue={person.has_iban} canReveal={canReveal} readOnly />
         <dl>
           <Item label="Telefon" value={person.phone} />
+          <Item label="Günlük ücret" value={person.daily_wage !== null && formatCurrency(Number(person.daily_wage))} />
         </dl>
       </section>
+      {paymentsSection}
     </div>
   );
 }

@@ -115,7 +115,7 @@ export function PersonnelForm({
     router.refresh();
   }
 
-  const text = (id: keyof PersonnelValues, label: string, opts?: { type?: string; inputMode?: "numeric" | "tel" | "text" }) => (
+  const text = (id: keyof PersonnelValues, label: string, opts?: { type?: string; inputMode?: "numeric" | "tel" | "text" | "decimal" }) => (
     <Field id={id} label={label} error={errors[id]?.message as string | undefined}>
       <Input
         id={id}
@@ -226,6 +226,7 @@ export function PersonnelForm({
           maxLength={40}
         />
         {text("phone", "Telefon", { type: "tel", inputMode: "tel" })}
+        {text("dailyWage", "Günlük ücret (₺)", { inputMode: "decimal" })}
       </fieldset>
 
       {isEdit && canDelete && (

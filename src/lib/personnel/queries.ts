@@ -7,7 +7,7 @@ import type { PersonStatus } from "@/lib/personnel/schemas";
  * `select("*")` kullanmayın; hassas sütunlar yüzünden zaten hata verir.
  */
 const PERSON_COLUMNS =
-  "id, full_name, employer_party_id, insurance_company, job, duty, status, hire_date, termination_date, temp_assignment_start, report_start, leave_start, absence_days_count, return_date, phone, has_tc_no, has_iban, parties(name)";
+  "id, full_name, employer_party_id, insurance_company, job, duty, status, hire_date, termination_date, temp_assignment_start, report_start, leave_start, absence_days_count, return_date, phone, daily_wage, has_tc_no, has_iban, parties(name)";
 
 export type PersonRow = {
   id: number;
@@ -25,6 +25,7 @@ export type PersonRow = {
   absence_days_count: number | null;
   return_date: string | null;
   phone: string | null;
+  daily_wage: number | null;
   has_tc_no: boolean;
   has_iban: boolean;
   parties: { name: string } | null;

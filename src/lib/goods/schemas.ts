@@ -41,6 +41,7 @@ export const goodsEntrySchema = z.object({
   unit: z.string().trim().max(30, "Birim en fazla 30 karakter olabilir."),
   variant: z.string().trim().max(150, "Çeşit en fazla 150 karakter olabilir."),
   quantity: decimalField("Miktar"),
+  unitPrice: decimalField("Birim fiyat"),
   usedLocation: z.string().trim().max(150, "Kullanıldığı yer en fazla 150 karakter olabilir."),
   purchaseLocation: z.string().trim().max(150, "Satın alma yeri en fazla 150 karakter olabilir."),
   transportCost: decimalField("Nakliye tutarı"),

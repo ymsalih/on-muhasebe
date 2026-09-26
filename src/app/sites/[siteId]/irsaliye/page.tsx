@@ -58,10 +58,12 @@ export default async function GoodsEntriesPage({
         [showParty && (e.parties?.name ?? NO_PARTY), e.variant, quantityText(e)].filter(Boolean).join(" · "),
       ]}
       trailing={
-        Number(e.transport_cost) > 0 ? (
-          <span className="block text-xs text-muted-foreground">
-            Nakliye
-            <span className="block text-sm font-medium text-foreground">{formatCurrency(Number(e.transport_cost))}</span>
+        e.total_amount !== null || Number(e.transport_cost) > 0 ? (
+          <span className="block text-right text-xs text-muted-foreground">
+            {e.total_amount !== null && (
+              <span className="block text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(e.total_amount))}</span>
+            )}
+            {Number(e.transport_cost) > 0 && <span className="block">Nakliye {formatCurrency(Number(e.transport_cost))}</span>}
           </span>
         ) : undefined
       }
@@ -138,6 +140,7 @@ export default async function GoodsEntriesPage({
             <div className="space-y-3">
               {sortedGroups.map(([name, rows]) => {
                 const totalTransport = rows.reduce((sum, r) => sum + Number(r.transport_cost), 0);
+                const totalAmount = rows.reduce((sum, r) => sum + Number(r.total_amount ?? 0), 0);
                 return (
                   <details key={name} open={sortedGroups.length <= 3} className="group rounded-xl border bg-card">
                     <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden">
@@ -146,10 +149,15 @@ export default async function GoodsEntriesPage({
                         <span className="block truncate font-medium">{name}</span>
                         <span className="text-xs text-muted-foreground">{rows.length} kayıt</span>
                       </span>
-                      {totalTransport > 0 && (
+                      {(totalAmount > 0 || totalTransport > 0) && (
                         <span className="shrink-0 text-right text-xs text-muted-foreground">
-                          Toplam nakliye
-                          <span className="block text-sm font-medium text-foreground">{formatCurrency(totalTransport)}</span>
+                          {totalAmount > 0 && (
+                            <>
+                              Toplam tutar
+                              <span className="block text-sm font-semibold tabular-nums text-foreground">{formatCurrency(totalAmount)}</span>
+                            </>
+                          )}
+                          {totalTransport > 0 && <span className="block">Nakliye {formatCurrency(totalTransport)}</span>}
                         </span>
                       )}
                     </summary>

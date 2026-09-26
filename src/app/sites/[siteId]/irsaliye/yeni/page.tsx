@@ -47,6 +47,7 @@ export default async function NewGoodsEntryPage({ params }: { params: Promise<{ 
           unit: "",
           variant: "",
           quantity: "",
+          unitPrice: "",
           usedLocation: "",
           purchaseLocation: "",
           transportCost: "",

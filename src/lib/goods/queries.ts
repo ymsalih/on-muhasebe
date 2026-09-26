@@ -13,6 +13,8 @@ export type EntryRow = {
   unit: string | null;
   variant: string | null;
   quantity: number | null;
+  unit_price: number | null;
+  total_amount: number | null;
   used_location: string | null;
   purchase_location: string | null;
   transport_cost: number;
@@ -21,7 +23,7 @@ export type EntryRow = {
 };
 
 const ENTRY_COLUMNS =
-  "id, entry_date, document_type, document_no, party_id, material_type, unit, variant, quantity, used_location, purchase_location, transport_cost, info, parties(name)";
+  "id, entry_date, document_type, document_no, party_id, material_type, unit, variant, quantity, unit_price, total_amount, used_location, purchase_location, transport_cost, info, parties(name)";
 
 /** Listede gösterilecek en fazla kayıt; daha eskiler Faz 8'deki raporlama/filtrelerle taranacak. */
 export const ENTRY_LIST_LIMIT = 300;

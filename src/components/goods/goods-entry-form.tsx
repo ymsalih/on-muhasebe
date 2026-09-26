@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FormError } from "@/components/auth/field";
 import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { createParty, deleteGoodsEntry, saveGoodsEntry, type PartyOption } from "@/lib/goods/actions";
 import {
   COMMON_UNITS,
@@ -19,6 +20,7 @@ import {
   PARTY_CATEGORIES,
   PARTY_CATEGORY_LABELS,
   goodsEntrySchema,
+  toDbNumber,
   type GoodsEntryValues,
   type PartyCategory,
 } from "@/lib/goods/schemas";
@@ -36,7 +38,7 @@ type Step = { title: string; fields: (keyof GoodsEntryValues)[] };
 // CLAUDE.md 7.3-G: 1) Belge Bilgisi 2) Firma ve Malzeme 3) Lokasyon ve Maliyet 4) Not
 const STEPS: Step[] = [
   { title: "Belge Bilgisi", fields: ["entryDate", "documentType", "documentNo"] },
-  { title: "Firma ve Malzeme", fields: ["partyId", "materialType", "unit", "variant", "quantity"] },
+  { title: "Firma ve Malzeme", fields: ["partyId", "materialType", "unit", "variant", "quantity", "unitPrice"] },
   { title: "Lokasyon ve Maliyet", fields: ["usedLocation", "purchaseLocation", "transportCost"] },
   { title: "Not", fields: ["info"] },
 ];
@@ -81,10 +83,16 @@ export function GoodsEntryForm({
     handleSubmit,
     trigger,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<GoodsEntryValues>({ resolver: zodResolver(goodsEntrySchema), defaultValues: initial });
 
   const last = STEPS.length - 1;
+
+  // Tutar = miktar × birim fiyat (veritabanı da aynısını hesaplar; burada yalnızca canlı önizleme).
+  const qty = toDbNumber(watch("quantity") ?? "");
+  const price = toDbNumber(watch("unitPrice") ?? "");
+  const lineTotal = qty !== null && price !== null && !Number.isNaN(qty) && !Number.isNaN(price) ? Math.round(qty * price * 100) / 100 : null;
 
   useEffect(() => {
     if (pendingParty && parties.some((p) => String(p.id) === pendingParty)) {
@@ -283,6 +291,15 @@ export function GoodsEntryForm({
             <Input id="unit" list="dl-units" autoComplete="off" className="h-11" aria-invalid={!!errors.unit} {...register("unit")} />
           </Field>
         </div>
+        <Field id="unitPrice" label="Birim fiyat (₺)" error={errors.unitPrice?.message}>
+          <Input id="unitPrice" inputMode="decimal" autoComplete="off" className="h-11" aria-invalid={!!errors.unitPrice} {...register("unitPrice")} />
+        </Field>
+        {lineTotal !== null && (
+          <p className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm" aria-live="polite">
+            <span className="text-muted-foreground">Tutar (miktar × birim fiyat)</span>
+            <span className="font-semibold tabular-nums">{formatCurrency(lineTotal)}</span>
+          </p>
+        )}
       </fieldset>
 
       {/* 3) Lokasyon ve Maliyet */}

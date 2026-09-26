@@ -51,6 +51,7 @@ export default async function NewPersonPage({ params }: { params: Promise<{ site
           iban: "",
           ibanChanged: true,
           phone: "",
+          dailyWage: "",
         }}
       />
     </div>

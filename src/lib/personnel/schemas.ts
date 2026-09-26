@@ -66,6 +66,10 @@ export const personnelSchema = z
     returnDate: optionalDate,
     iban: z.string().trim(),
     ibanChanged: z.boolean(),
+    dailyWage: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^\d{1,10}([.,]\d{1,2})?$/.test(v), "Günlük ücret geçerli bir tutar olmalı (en fazla 2 ondalık)."),
     phone: z
       .string()
       .trim()
