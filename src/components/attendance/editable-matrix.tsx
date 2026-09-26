@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { FormError } from "@/components/auth/field";
 import { MatrixScroll } from "@/components/attendance/matrix-scroll";
 import { saveAttendance } from "@/lib/attendance/actions";
 import { formatDate } from "@/lib/format";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { cn } from "@/lib/utils";
 
 /** ok: çalışabilir (dokunulabilir) · İ/R/G: izinli/raporlu/geçici görevde · "-": çalışma dışı · future: gelecek gün */
@@ -53,6 +54,16 @@ export function EditableMatrix({
   const [error, setError] = useState<string | null>(null);
   const [last, setLast] = useState<Change | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLocalChange = useRef(0);
+
+  // Sunucu tek gerçek kaynaktır: sayfa canlı tazelenir ve gelen veri yerel durumu günceller
+  // (günlük ekrandan ya da başka sekmeden yapılan işaretler matriste de görünür).
+  useLiveRefresh(busy.size === 0);
+  useEffect(() => {
+    // Kendi yaptığımız iyimser değişiklik sürerken / hemen sonrasında eski veri geri yazılmasın.
+    if (busy.size > 0 || Date.now() - lastLocalChange.current < 3000) return;
+    setPresent(new Map(rows.map((r) => [r.id, new Set(initialPresent[r.id] ?? [])])));
+  }, [initialPresent, rows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [year, month] = ym.split("-").map(Number);
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -67,6 +78,7 @@ export function EditableMatrix({
     if (busy.has(key)) return;
     setError(null);
     if (timer.current) clearTimeout(timer.current);
+    lastLocalChange.current = Date.now();
 
     const setMark = (on: boolean) =>
       setPresent((prev) => {
