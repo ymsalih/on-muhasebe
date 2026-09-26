@@ -14,7 +14,8 @@
     "test:rls:personnel": "tsx scripts/test-rls-personnel.mts",
     "test:status": "tsx scripts/test-personnel-status.mts",
     "test:rls:attendance": "tsx scripts/test-rls-attendance.mts",
-    "test:rls:transactions": "tsx scripts/test-rls-transactions.mts"
+    "test:rls:transactions": "tsx scripts/test-rls-transactions.mts",
+    "test:range": "tsx scripts/test-cash-range.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

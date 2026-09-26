@@ -18,7 +18,6 @@ export type PartyValues = z.infer<typeof partySchema>;
 export const TX_KINDS = ["odeme", "tahsilat"] as const;
 export type TxKind = (typeof TX_KINDS)[number];
 export const TX_KIND_LABELS: Record<TxKind, string> = { odeme: "Ödeme", tahsilat: "Tahsilat" };
-export const kindToType = (k: TxKind) => (k === "tahsilat" ? "income" : "expense") as "income" | "expense";
 export const typeToKind = (t: "income" | "expense"): TxKind => (t === "income" ? "tahsilat" : "odeme");
 
 export const PAYMENT_METHODS = ["nakit", "havale", "cek", "diger"] as const;
@@ -29,18 +28,3 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cek: "Çek",
   diger: "Diğer",
 };
-
-/** Cari ödeme/tahsilat formu. Tutar metin olarak tutulur ("1.250,50" değil "1250,50"); sunucuda sayıya çevrilir. */
-export const transactionSchema = z.object({
-  kind: z.enum(TX_KINDS, "Ödeme mi tahsilat mı seçin."),
-  amount: z
-    .string()
-    .trim()
-    .min(1, "Tutarı girin.")
-    .regex(/^\d{1,12}([.,]\d{1,2})?$/, "Geçerli bir tutar girin (en fazla 2 ondalık).")
-    .refine((v) => Number(v.replace(",", ".")) > 0, "Tutar 0'dan büyük olmalı."),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih seçin."),
-  description: z.string().trim().min(2, "Açıklama en az 2 karakter olmalı.").max(300, "Açıklama en fazla 300 karakter olabilir."),
-  paymentMethod: z.union([z.literal(""), z.enum(PAYMENT_METHODS)]),
-});
-export type TransactionValues = z.infer<typeof transactionSchema>;
