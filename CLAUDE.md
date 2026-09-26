@@ -8,9 +8,10 @@ Birden fazla ortağın (ör. Veysel, ve diğer ortaklar) kendi kullanıcı adı/
 
 Temel prensip — **modülerlik**: bir ortak yeni bir şantiye eklediğinde, o şantiyeye ait tüm veriler (irsaliye, personel, puantaj, cari hesap, kasa hareketleri) diğer şantiyelerden tamamen izole tutulur. Aynı ekran/akış her şantiye için tekrar kullanılır, veri karışmaz.
 
-İkinci prensip — **rol ayrımı**:
-- **Admin paneli**: tüm ortakları ve tüm şantiyeleri genel olarak görebilir, yeni ortak ekleyip ona özel bir panel açabilir.
-- **Ortak paneli**: giriş yapan ortak, önce erişebildiği şantiyelerden birini seçer, sonra o şantiyenin panelinde çalışır. Örnek senaryo: Veysel giriş yapar → şantiyelerinden birini seçer → o şantiyeye özel irsaliye/personel/cari/kasa işlemlerini yapar → başka bir şantiye seçtiğinde tamamen farklı, izole bir veri seti görür.
+İkinci prensip — **rol ayrımı** (ÖNEMLİ — sık karışan nokta, dikkatle uygula):
+- **Admin paneli SADECE şunun için var**: (1) yeni ortak **kullanıcı hesabı** oluşturmak (e-posta/şifre ile giriş bilgisi açmak), (2) tüm ortakları ve tüm şantiyeleri **salt görüntüleme** amaçlı genel olarak listelemek. Admin panelinde **şantiye oluşturma yoktur** ve admin hiçbir şantiyeye kendiliğinden üye olmaz.
+- **Ortak paneli**: giriş yapan ortak, önce erişebildiği şantiyelerden birini seçer, sonra o şantiyenin panelinde çalışır. **Yeni şantiye eklemek her ortağın kendi panelinden yapabildiği bir işlemdir** — admin yetkisi gerektirmez. Bir ortak yeni şantiye oluşturduğunda otomatik olarak o şantiyenin `owner`'ı olur (`site_members`'a `role='owner'` ile kendisi eklenir). Sahibi olduğu bir şantiyeye, sistemde zaten hesabı olan başka bir ortağı (admin'in daha önce oluşturduğu bir kullanıcıyı) davet edip **site_members**'a ekleyebilir — böylece iki ortak aynı şantiye üzerinde birlikte çalışabilir, her biri kendi görünümünü (Genel / Kendi Panelim) kullanır.
+- Örnek senaryo: Admin, Veysel ve ikinci ortağın kullanıcı hesaplarını açar (sadece giriş bilgisi verir). Veysel giriş yapar → kendi panelinden "Yeni Şantiye Ekle" der → o şantiyenin owner'ı olur → ikinci ortağı bu şantiyeye üye olarak ekler → ikisi de aynı şantiyede, ayrı panellerle çalışır. Veysel başka bir şantiye daha eklerse, bu tamamen ayrı ve izole bir veri seti olur.
 
 ## 2. Teknoloji Yığını
 
@@ -24,9 +25,14 @@ Temel prensip — **modülerlik**: bir ortak yeni bir şantiye eklediğinde, o �
 ## 3. Roller ve Yetkilendirme Mantığı
 
 - `users.role`: `admin` veya `partner`.
-- `site_members` tablosu, hangi kullanıcının hangi şantiyeye erişebildiğini tutar (çok-çok ilişki). Yeni bir ortak eklemek veya bir ortağa yeni bir şantiye açmak, bu tabloya satır eklemekten ibarettir — şema değişmez.
-- **Admin**: `site_members`'tan bağımsız, tüm `sites` ve tüm ilişkili verileri görebilir; yeni kullanıcı/şantiye oluşturabilir.
-- **Partner**: yalnızca `site_members` üzerinden üyesi olduğu `site_id`'lere ait verileri görebilir. Erişim kontrolü Supabase RLS politikalarıyla veritabanı seviyesinde uygulanır; uygulama kodunda ayrıca yetki kontrolü tekrar yazılmaz.
+- `site_members` tablosu, hangi kullanıcının hangi şantiyeye erişebildiğini tutar (çok-çok ilişki).
+- **Admin**: `site_members`'tan bağımsız, tüm `sites` ve tüm ilişkili verileri **salt görüntüleme** amaçlı görebilir; yeni **kullanıcı hesabı** oluşturabilir (`supabase.auth.admin.createUser`). **Admin şantiye oluşturamaz, site_members'a satır ekleyemez/kendini bir şantiyeye üye yapamaz** — bu, ortakların kendi işidir.
+- **Partner**: yalnızca `site_members` üzerinden üyesi olduğu `site_id`'lere ait verileri görebilir. Kendi panelinden yeni şantiye oluşturabilir (bu işlem sırasında kendisi otomatik `owner` olarak `site_members`'a eklenir) ve sahibi olduğu şantiyeye, sistemde zaten var olan başka bir ortağı üye olarak ekleyebilir.
+- **RLS insert politikaları bu ayrıma göre kurulur**:
+  - `sites` INSERT → herhangi bir giriş yapmış kullanıcı (`auth.uid() IS NOT NULL`) ekleyebilir; `created_by = auth.uid()`.
+  - `site_members` INSERT → iki durumda izinli: (a) kullanıcı kendini, **kendi az önce oluşturduğu** şantiyeye `role='owner'` olarak ekliyorsa (`site_id`'nin `sites.created_by = auth.uid()` olması şartı aranır), (b) o şantiyede zaten `owner` olan kullanıcı, başka bir mevcut kullanıcıyı aynı şantiyeye ekliyorsa. Admin bu tabloya satır eklemez.
+  - `sites`/`site_members` üzerinde admin sadece SELECT (görüntüleme) yetkisine sahiptir.
+- Erişim kontrolü Supabase RLS politikalarıyla veritabanı seviyesinde uygulanır; uygulama kodunda ayrıca yetki kontrolü tekrar yazılmaz.
 - Her operasyonel tablo (`goods_entries`, `personnel`, `attendance`, `parties`, `transactions` vb.) bir `site_id` sütunu taşır — modülerliğin temeli budur.
 
 ## 4. Veritabanı Şeması
@@ -36,7 +42,7 @@ Temel prensip — **modülerlik**: bir ortak yeni bir şantiye eklediğinde, o �
 -- KULLANICILAR VE ŞANTİYELER
 -- ============================================================
 
--- FAZ 1'DE UYGULANDI (supabase/migrations/20260926091139_*.sql ve ..._grant_service_role.sql).
+-- FAZ 1'DE UYGULANDI (supabase/migrations/): users.id artık auth.users.id ile eşleşen UUID'dir.
 -- Not: aşağıdaki diğer tablolarda `users(id)` referansları da UUID olmalı (created_by, user_id, recorded_by...) —
 -- ilgili fazın migration'ında INTEGER yerine UUID yazılır. RLS için private.has_site_access(site_id) kullanılır.
 CREATE TABLE users (
@@ -273,25 +279,22 @@ GROUP BY site_id, date_trunc('month', transaction_date), type, category_id;
 - **Kullanıcı ekleme akışı (Auth)**: herkese açık bir "kayıt ol" ekranı YOK. Yalnızca admin, "Yeni Ortak Ekle" formuyla `supabase.auth.admin.createUser({ email, password, email_confirm: true })` çağırır — `email_confirm: true` e-posta doğrulama adımını atlar, çünkü bu kapalı/davetli bir sistemdir, herkese açık kayıt riski yoktur. Admin, oluşturduğu geçici şifreyi ortağa güvenli bir kanaldan (e-posta değil — WhatsApp/telefon) iletir. Ortak ilk girişte bu şifreyle içeri girer ve **ilk girişte şifre değiştirmeye zorlanır** (`must_change_password` bayrağı `users` tablosunda tutulur, `true` ise giriş sonrası doğrudan şifre değiştirme ekranına yönlendirilir).
 - **İlk admin kullanıcısının oluşturulması (bootstrap)**: sistemde admin yokken kimse "Yeni Ortak Ekle" formunu kullanamaz — bu yumurta-tavuk sorununu çözmek için Faz 1 kapsamında tek seferlik, tekrar çalıştırılabilir bir **seed script** yazılır (ör. `scripts/create-first-admin.ts`). Script: (1) verilen e-posta/şifre ile `supabase.auth.admin.createUser({ email, password, email_confirm: true })` çağırır, (2) dönen `auth.users.id`'yi kullanarak `users` tablosuna `role = 'admin'` olarak satır ekler. `users.id` alanı bu yüzden `SERIAL` değil, `auth.users.id` ile birebir eşleşen `UUID REFERENCES auth.users(id)` olmalıdır — Bölüm 4'teki şema Faz 1'de buna göre güncellenir. Script, komut satırından `npx tsx scripts/create-first-admin.ts` gibi çalıştırılır ve her yeni ortamda (yerel/test/production) ilk admini oluşturmak için tekrar kullanılabilir; production'da çalıştırıldıktan sonra sızıntı riskine karşı script'teki şifre asla kod içine sabit yazılmaz, ortam değişkeninden (`.env`) okunur.
 
-### Faz 1 uygulama notları (teknik)
+### Uygulama notları — Faz 1 ve Faz 2 (teknik)
 
-- Next.js **16**: `middleware.ts` yerine `src/proxy.ts` kullanılır (oturum yenileme + girişsiz kullanıcıyı `/login`'e yönlendirme). Kod yazmadan önce `node_modules/next/dist/docs/` okunur (bkz. AGENTS.md).
-- Supabase istemcileri `src/lib/supabase/`: `client.ts` (tarayıcı), `server.ts` (sunucu), `admin.ts` (**service_role**, yalnızca sunucuda ve `requireAdmin()` sonrası). Kimlik doğrulama için `getUser()`/`getClaims()`; sunucuda `getSession()` güvenilmez.
-- Yetki yardımcıları `src/lib/auth/session.ts`: `requireUser()` (giriş + `must_change_password` yönlendirmesi), `requireAdmin()`. RLS yardımcıları `private` şemasında: `is_admin()`, `has_site_access(site_id)`, `is_site_owner(site_id)`, `shares_site_with(user_id)`. Yeni operasyonel tabloların politikaları `private.has_site_access(site_id)` kullanır.
-- `users` tablosunda `authenticated` rolü yalnızca `full_name, phone, must_change_password` sütunlarını güncelleyebilir; rol değişikliği ve kullanıcı oluşturma yalnızca service_role ile. `sites`/`site_members` yazma: admin (`sites` güncelleme: admin veya `owner`).
+- Next.js **16**: `middleware.ts` yerine `src/proxy.ts` (oturum yenileme + girişsiz kullanıcıyı `/login`'e yönlendirme). Kod yazmadan önce `node_modules/next/dist/docs/` okunur (bkz. AGENTS.md).
+- Supabase istemcileri `src/lib/supabase/`: `client.ts` (tarayıcı), `server.ts` (sunucu), `admin.ts` (**service_role**; yalnızca `createPartner` ve seed script'i). Kimlik için `getUser()`/`getClaims()`; sunucuda `getSession()` güvenilmez.
+- `src/lib/auth/session.ts`: `requireUser()` (giriş + `must_change_password` yönlendirmesi), `requireAdmin()`. Her admin sayfası kendi başına `requireAdmin()` çağırır (layout tek başına yeterli değildir).
+- **Yetki modeli veritabanındadır (RLS)**; server action'lardaki kontroller yalnızca anlaşılır hata mesajı içindir. RLS yardımcıları `private` şemasında: `is_admin()`, `has_site_access(site_id)`, `is_site_owner(site_id)`, `is_site_creator(site_id)`, `site_has_members(site_id)`, `is_partner(user_id)`, `shares_site_with(user_id)`. Yeni operasyonel tabloların politikaları `private.has_site_access(site_id)` kullanır (admin SELECT, üyeler tüm işlemler; **admin veri yazmaz**).
+- Şantiye/üye politikaları (migration `..._faz2b_owner_based_site_policies.sql`): `sites` INSERT herkes (`created_by = auth.uid()`) **admin hariç**; `site_members` INSERT = ilk üye olarak kendini owner ekleme (yalnızca oluşturan, üyesi yokken) veya owner'ın başka bir **ortağı** partner/viewer olarak eklemesi (admin hesabı ve owner rolü verilemez); DELETE = owner, owner olmayan üyeleri çıkarır; `sites` UPDATE yalnızca owner ve yalnızca ad/adres/tarih/durum; `sites` silinemez. `users` tablosunda `authenticated` yalnızca `full_name, phone, must_change_password` günceller.
+- RPC'ler (public): `create_site(name, address, start_date)` — SECURITY INVOKER, şantiye + owner üyeliği tek işlemde, RLS aynen geçerli; `search_users_for_site(site_id, query)` — SECURITY DEFINER, yalnızca o şantiyenin owner'ı çağırabilir, sadece ortak hesapları, mevcut üyeler hariç, ≥2 karakter, en fazla 10 sonuç (Supabase advisor'ında "SECURITY DEFINER fonksiyonu çağrılabilir" uyarısı bilinçli ve beklenendir).
 - Bu Supabase projesinde tablo yetkileri otomatik verilmez: her yeni tabloda `authenticated` ve `service_role` için GRANT açıkça yazılır; `anon`'a hiçbir yetki verilmez.
-- Route yapısı: `(auth)/login`, `(auth)/forgot-password`, `change-password`, `auth/callback`, `(general)/admin`, `(general)/sites`, `sites/[siteId]/...` (şantiye paneli: `AppShell` — şantiye chip'i + sidebar + alt bar). Henüz teslim edilmeyen menü öğeleri "Yakında" olarak devre dışıdır.
-- shadcn/ui bu projede Base UI tabanlıdır (`base-nova`); `cn` yardımcısı `clsx + tailwind-merge` ile `src/lib/utils.ts`'tedir.
-- İlk admin: `npm run create-first-admin` (`.env.local`: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥10 karakter, `ADMIN_FULL_NAME`). Çalıştırdıktan sonra `ADMIN_*` değerleri `.env.local`'dan silinir.
-
-### Faz 2 uygulama notları (teknik)
-
-- Admin ekranları `(general)/admin/`: `ortaklar` (liste + `yeni`), `santiyeler` (liste + `yeni` + `[id]` üye yönetimi/durum). Her sayfa kendi başına `requireAdmin()` çağırır (layout tek başına yeterli değildir).
-- Yazma işlemleri `src/lib/admin/actions.ts` server action'larındadır (`createPartner`, `createSite`, `addSiteMember`, `removeSiteMember`, `setSiteStatus`); zod şemaları `src/lib/admin/schemas.ts`'te ve **sunucuda yeniden doğrulanır**. Yalnızca kullanıcı oluşturma `service_role` kullanır; şantiye/üye yazmaları admin oturumuyla RLS üzerinden yapılır. Kısmi kayıt oluşursa (ör. users yazılamadı) önceki adım geri alınır.
+- Route yapısı: `(auth)/login`, `(auth)/forgot-password`, `change-password`, `auth/callback`; `(general)/admin` (+ `ortaklar`, `ortaklar/yeni`, `santiyeler` salt okunur liste/detay); `(general)/sites` (seçim), `(general)/sites/yeni`; `sites/[siteId]` (dashboard), `sites/[siteId]/ortaklar` (B2). Henüz teslim edilmeyen menü öğeleri "Yakında" olarak devre dışıdır.
+- Server action'lar: `lib/admin/actions.ts` (`createPartner`), `lib/sites/actions.ts` (`createSite`, `searchUsersForSite`, `addSiteMember`, `removeSiteMember`); zod şemaları yanlarında ve **sunucuda yeniden doğrulanır**.
 - Yeni ortak: admin geçici şifreyi girer veya "Oluştur" ile üretir; şifre yalnızca oluşturma sonrası bilgi kartında bir kez gösterilir. `must_change_password = true`.
-- Şantiyeyi yalnızca admin oluşturur; ortaklar yeni şantiye ekleyemez ("+ Yeni Şantiye Ekle" kartı yalnızca admine görünür). Tek şantiyesi olan ortak `/` üzerinden doğrudan o şantiyeye yönlenir.
 - Dashboard özet kartları (`components/dashboard/summary-cards.tsx`) kasa/puantaj tabloları olmadığı için `null` → "—" gösterir; sahte 0 yazılmaz. **Faz 5 (puantaj) ve Faz 7 (kasa)'da `sites/[siteId]/page.tsx` içindeki `null` değerler gerçek sorgularla bağlanacak.** Şantiye seçim kartlarındaki "bu ay net bakiye" özeti de Faz 7'de eklenecek.
-- Biçimlendirme tek noktadan: `src/lib/format.ts` (`formatCurrency` → ₺12.500,00, `formatDate` → GG.AA.YYYY). Sabit alt Kaydet çubuğu: `components/layout/sticky-action-bar.tsx`.
+- Biçimlendirme tek noktadan: `src/lib/format.ts` (`formatCurrency` → ₺12.500,00, `formatDate` → GG.AA.YYYY). Sabit alt Kaydet çubuğu: `components/layout/sticky-action-bar.tsx`. shadcn/ui Base UI tabanlıdır (`base-nova`); `cn` = `clsx + tailwind-merge` (`src/lib/utils.ts`).
+- İlk admin: `npm run create-first-admin` (`.env.local`: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥10 karakter, `ADMIN_FULL_NAME`); sonra `ADMIN_*` değerleri `.env.local`'dan silinir.
+- **Güvenlik testi**: `npm run test:rls` (`scripts/test-rls-sites.mts`) geçici hesaplarla 2 ortak + admin senaryosunu gerçek oturumlarla dener ve kendini temizler; her fazda ilgili tabloların kontrolleri buraya (veya yanına) eklenir.
 
 ## 7. Arayüz (UI/UX) Tasarım Kuralları
 
@@ -323,7 +326,10 @@ Bu bölüm bağlayıcıdır — Claude Code her ekranı yazarken burada tarif ed
 Tek sütun, ortalanmış form (e-posta + şifre), altında "Şifremi unuttum". Rol (admin/partner) kullanıcıya sorulmaz — giriş sonrası otomatik yönlendirilir.
 
 **B. Şantiye seçim ekranı** (partner girişinden sonra)
-Kart listesi: her kart bir şantiyenin adını, kısa özetini (ör. bu ayki net bakiye) gösterir. En altta "+ Yeni Şantiye Ekle" kartı (yetkisi varsa). Tek şantiyesi olan kullanıcı bu ekranı hiç görmez, doğrudan o şantiyenin ana sayfasına düşer.
+Kart listesi: her kart bir şantiyenin adını, kısa özetini (ör. bu ayki net bakiye) gösterir. En altta "+ Yeni Şantiye Ekle" kartı — **her ortak bu işlemi kendi panelinden yapabilir, admin yetkisi gerekmez**; oluşturan kişi otomatik olarak o şantiyenin owner'ı olur. Tek şantiyesi olan kullanıcı bu ekranı hiç görmez, doğrudan o şantiyenin ana sayfasına düşer.
+
+**B2. Şantiye Ortakları** (site owner'ın erişebildiği bir ayar ekranı)
+Bir şantiyenin owner'ı, o şantiyenin panelinde "Şantiye Ortakları" bölümünden sistemde zaten hesabı olan bir ortağı arayıp o şantiyeye üye olarak ekleyebilir (rolünü partner/viewer olarak belirler). Bu ekran admin panelinde DEĞİL, ortağın kendi şantiye panelindedir.
 
 **C. Şantiye ana sayfası (dashboard)**
 Üstte 4 özet kart (yatay kaydırmalı mobilde, grid masaüstünde): Bu Ay Gelir, Bu Ay Gider, Net Bakiye, Bugün Gelen Personel Sayısı. Altında son 5 kasa hareketi ve "Tümünü Gör" linki. En altta hızlı eylem butonları: "Gelir/Gider Ekle", "Günlük Gelenler", "İrsaliye Ekle".
@@ -355,7 +361,7 @@ Tüm formlar `react-hook-form` + `zod` ile aynı doğrulama/hata gösterme desen
 Claude Code'a görevleri bu sırayla ver; bir fazı bitirip test etmeden bir sonrakine geçme. Her faz hem veritabanı/mantık hem de Bölüm 7'de tarif edilen ilgili ekran(lar)ı birlikte teslim eder — önce şema, sonra o şemaya bağlı ekran.
 
 1. **Faz 1 — Temel altyapı**: `users`, `sites`, `site_members` migration'ları + Supabase Auth entegrasyonu + admin/partner rol ayrımı + temel RLS politikaları. **Ekran**: Giriş ekranı (7.3-A), mobil alt navigasyon + masaüstü sidebar iskeleti (7.2).
-2. **Faz 2 — Şantiye seçimi ve panel iskeleti**: admin panelinin genel görünümü, yeni ortak/şantiye ekleme akışı. **Ekran**: Şantiye seçim ekranı (7.3-B), şantiye ana sayfası/dashboard iskeleti (7.3-C, boş veri durumlarıyla).
+2. **Faz 2 — Şantiye seçimi ve panel iskeleti**: admin panelinde SADECE "Yeni Ortak Ekle" (kullanıcı hesabı oluşturma) formu ve tüm ortak/şantiyelerin salt-görüntüleme listesi; ortak panelinde "Yeni Şantiye Ekle" (kendi şantiyesini oluşturma, otomatik owner ataması) ve "Şantiye Ortakları" (mevcut bir ortağı şantiyeye üye ekleme). Admin panelinde şantiye oluşturma veya site_members'a satır ekleme YAPILMAZ. **Ekran**: Şantiye seçim ekranı + B2 (7.3-B, 7.3-B2), şantiye ana sayfası/dashboard iskeleti (7.3-C, boş veri durumlarıyla).
 3. **Faz 3 — İrsaliye/Fatura girişi**: `parties` + `goods_entries` migration'ları. **Ekran**: İrsaliye giriş formu — mobilde adım adım, masaüstünde bölümlü (7.3-G), firma bazlı listeleme.
 4. **Faz 4 — Personel yönetimi**: `personnel` + `payment_accounts` migration'ları, `tc_no`/`iban` için erişim kısıtlaması. **Ekran**: Personel listesi + detay/düzenleme ekranı, gizli alan (●●●●) davranışı (7.3-H).
 5. **Faz 5 — Puantaj**: `attendance` migration'ı, `monthly_attendance_summary` view'i. **Ekran**: Günlük Gelenler (çoklu seçim + sabit Kaydet çubuğu) ve Aylık Özet matrisi (7.3-E).
