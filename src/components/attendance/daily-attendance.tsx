@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Search, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, MessageSquarePlus, Search, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError } from "@/components/auth/field";
 import { StickyActionBar } from "@/components/layout/sticky-action-bar";
-import { saveAttendance } from "@/lib/attendance/actions";
+import { saveAttendance, setAttendanceNote } from "@/lib/attendance/actions";
 import { formatDate } from "@/lib/format";
 import { addDays } from "@/lib/personnel/status";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,12 @@ export type DailyPerson = {
   warning?: string;
 };
 export type ExcludedPerson = { id: number; full_name: string; reason: string };
+/** Kaydedilmiş bir işaretin bilgileri (not, işaretleyen, saat). */
+export type PresentMeta = { id: number; note: string | null; markedBy: string | null; markedAt: string };
+
+const UNDO_MS = 10_000;
+const timeFmt = (iso: string) =>
+  new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
 
 const NO_GROUP = "Görev belirtilmedi";
 const trCompare = (a: string, b: string) => a.localeCompare(b, "tr");
@@ -44,13 +50,19 @@ export function DailyAttendance({
   today: string;
   people: DailyPerson[];
   excluded: ExcludedPerson[];
-  initialPresent: number[];
+  initialPresent: PresentMeta[];
   canWrite: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [saved, setSaved] = useState(() => new Set(initialPresent));
-  const [selected, setSelected] = useState(() => new Set(initialPresent));
+  const [saved, setSaved] = useState(() => new Set(initialPresent.map((m) => m.id)));
+  const [selected, setSelected] = useState(() => new Set(initialPresent.map((m) => m.id)));
+  const meta = useMemo(() => new Map(initialPresent.map((m) => [m.id, m])), [initialPresent]);
+  const [noteEdits, setNoteEdits] = useState<Record<number, string | null>>({});
+  const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [lastSave, setLastSave] = useState<{ added: number[]; removed: number[] } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState("");
   const [groupBy, setGroupBy] = useState<"ad" | "gorev">("ad");
   const [error, setError] = useState<string | null>(null);
@@ -120,8 +132,44 @@ export function DailyAttendance({
       if (!res.ok) return setError(res.error);
       setSaved(new Set(selected));
       setDone(true);
+      setLastSave({ added, removed });
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      undoTimer.current = setTimeout(() => setLastSave(null), UNDO_MS);
       router.refresh();
     });
+  }
+
+  /** Son kaydı tersine çevirir: eklenenleri çıkarır, çıkarılanları geri ekler. */
+  function onUndo() {
+    if (!lastSave) return;
+    const { added: prevAdded, removed: prevRemoved } = lastSave;
+    setError(null);
+    startTransition(async () => {
+      const res = await saveAttendance({ siteId, date, add: prevRemoved, remove: prevAdded }).catch(() => null);
+      if (!res) return setError("Geri alınamadı, bağlantınızı kontrol edip tekrar deneyin.");
+      if (!res.ok) return setError(res.error);
+      const next = new Set(saved);
+      prevAdded.forEach((id) => next.delete(id));
+      prevRemoved.forEach((id) => next.add(id));
+      setSaved(next);
+      setSelected(new Set(next));
+      setLastSave(null);
+      setDone(false);
+      router.refresh();
+    });
+  }
+
+  async function onSaveNote() {
+    if (!editing) return;
+    setNoteBusy(true);
+    setError(null);
+    const res = await setAttendanceNote({ siteId, date, personnelId: editing.id, note: editing.text }).catch(() => null);
+    setNoteBusy(false);
+    if (!res) return setError("Not kaydedilemedi, bağlantınızı kontrol edip tekrar deneyin.");
+    if (!res.ok) return setError(res.error);
+    setNoteEdits((prev) => ({ ...prev, [editing.id]: editing.text.trim() === "" ? null : editing.text.trim() }));
+    setEditing(null);
+    router.refresh();
   }
 
   const isToday = date === today;
@@ -158,10 +206,16 @@ export function DailyAttendance({
 
       <FormError message={error} />
       {done && (
-        <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-100 px-3 py-2.5 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+        <div role="status" className="flex items-center gap-2 rounded-lg bg-emerald-100 px-3 py-1.5 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
           <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-          Puantaj kaydedildi.
-        </p>
+          <span className="flex-1">Puantaj kaydedildi.</span>
+          {lastSave && canWrite && (
+            <Button type="button" variant="ghost" className="h-11 shrink-0 text-emerald-900 dark:text-emerald-200" onClick={onUndo} disabled={pending}>
+              <Undo2 aria-hidden />
+              Geri al
+            </Button>
+          )}
+        </div>
       )}
 
       {people.length === 0 ? (
@@ -234,27 +288,78 @@ export function DailyAttendance({
                     const on = selected.has(p.id);
                     return (
                       <li key={p.id}>
-                        <label className={cn("flex min-h-14 items-center gap-3 px-4 py-2", canWrite ? "cursor-pointer hover:bg-muted/40" : "cursor-default", on && "bg-emerald-50 dark:bg-emerald-950/30")}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            disabled={!canWrite || pending}
-                            onChange={() => toggle(p.id)}
-                            className="size-7 shrink-0 accent-emerald-600"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{p.full_name}</span>
-                            {(p.job || p.duty) && (
-                              <span className="block truncate text-xs text-muted-foreground">{[p.job, p.duty].filter(Boolean).join(" · ")}</span>
-                            )}
-                            {p.warning && (
-                              <span className="mt-0.5 flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400">
-                                <AlertTriangle className="size-3 shrink-0" aria-hidden />
-                                Bu tarihte {p.warning.toLocaleLowerCase("tr-TR")} görünüyor
-                              </span>
-                            )}
-                          </span>
-                        </label>
+                        <div className={cn("flex items-stretch", on && "bg-emerald-50 dark:bg-emerald-950/30")}>
+                          <label className={cn("flex min-h-14 min-w-0 flex-1 items-center gap-3 px-4 py-2", canWrite ? "cursor-pointer hover:bg-muted/40" : "cursor-default")}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              disabled={!canWrite || pending}
+                              onChange={() => toggle(p.id)}
+                              className="size-7 shrink-0 accent-emerald-600"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">{p.full_name}</span>
+                              {(p.job || p.duty) && (
+                                <span className="block truncate text-xs text-muted-foreground">{[p.job, p.duty].filter(Boolean).join(" · ")}</span>
+                              )}
+                              {saved.has(p.id) && (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {meta.get(p.id)
+                                    ? `${meta.get(p.id)!.markedBy ?? "Bilinmiyor"} işaretledi · ${timeFmt(meta.get(p.id)!.markedAt)}`
+                                    : "Az önce işaretlendi"}
+                                </span>
+                              )}
+                              {p.warning && (
+                                <span className="mt-0.5 flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400">
+                                  <AlertTriangle className="size-3 shrink-0" aria-hidden />
+                                  Bu tarihte {p.warning.toLocaleLowerCase("tr-TR")} görünüyor
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                          {canWrite && saved.has(p.id) && (
+                            <button
+                              type="button"
+                              aria-label={`${p.full_name} için not ekle veya düzenle`}
+                              onClick={() => setEditing({ id: p.id, text: (p.id in noteEdits ? noteEdits[p.id] : meta.get(p.id)?.note) ?? "" })}
+                              className="flex min-h-14 w-12 shrink-0 items-center justify-center text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                            >
+                              <MessageSquarePlus className="size-5" aria-hidden />
+                            </button>
+                          )}
+                        </div>
+                        {(() => {
+                          const note = p.id in noteEdits ? noteEdits[p.id] : meta.get(p.id)?.note;
+                          if (editing?.id === p.id) {
+                            return (
+                              <div className="flex items-center gap-2 border-t bg-muted/30 px-4 py-2">
+                                <Input
+                                  autoFocus
+                                  aria-label={`${p.full_name} notu`}
+                                  placeholder="Not (ör. yarım gün, geç geldi)"
+                                  maxLength={200}
+                                  className="h-11 min-w-0 flex-1"
+                                  value={editing.text}
+                                  onChange={(e) => setEditing({ id: p.id, text: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      void onSaveNote();
+                                    }
+                                  }}
+                                />
+                                <Button type="button" className="h-11" onClick={onSaveNote} disabled={noteBusy}>
+                                  {noteBusy && <Loader2 className="animate-spin" aria-hidden />}
+                                  Kaydet
+                                </Button>
+                                <Button type="button" variant="ghost" className="h-11" onClick={() => setEditing(null)}>
+                                  Vazgeç
+                                </Button>
+                              </div>
+                            );
+                          }
+                          return note ? <p className="border-t bg-muted/30 px-4 py-2 text-xs">Not: {note}</p> : null;
+                        })()}
                       </li>
                     );
                   })}

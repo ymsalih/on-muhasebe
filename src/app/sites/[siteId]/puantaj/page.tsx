@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DailyAttendance, type DailyPerson, type ExcludedPerson } from "@/components/attendance/daily-attendance";
+import { DailyAttendance, type DailyPerson, type ExcludedPerson, type PresentMeta } from "@/components/attendance/daily-attendance";
 import { MonthlyMatrix } from "@/components/attendance/monthly-matrix";
 import { requireUser } from "@/lib/auth/session";
-import { getMonthData, listAttendancePeople, listPresentIds } from "@/lib/attendance/queries";
+import { getMonthData, listAttendancePeople, listPresent } from "@/lib/attendance/queries";
 import { workAvailability, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
@@ -101,15 +101,16 @@ export default async function AttendancePage({
             </Link>
           )}
         </div>
-        <MonthlyMatrix siteId={siteId} ym={ym} today={today} people={people} data={data} />
+        <MonthlyMatrix siteId={siteId} ym={ym} today={today} people={people} data={data} canWrite={canWriteRole(role)} />
       </div>
     );
   }
 
   // ---------------- Günlük Gelenler ----------------
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.tarih ?? "") && sp.tarih! <= today ? sp.tarih! : today;
-  const presentIds = await listPresentIds(siteId, date);
-  const present = new Set(presentIds);
+  const presentRows = await listPresent(siteId, date);
+  const present = new Set(presentRows.map((r) => r.personnelId));
+  const presentMeta: PresentMeta[] = presentRows.map((r) => ({ id: r.personnelId, note: r.note, markedBy: r.markedBy, markedAt: r.markedAt }));
 
   const list: DailyPerson[] = [];
   const excluded: ExcludedPerson[] = [];
@@ -132,7 +133,7 @@ export default async function AttendancePage({
         today={today}
         people={list}
         excluded={excluded}
-        initialPresent={presentIds}
+        initialPresent={presentMeta}
         canWrite={canWriteRole(role)}
       />
     </div>

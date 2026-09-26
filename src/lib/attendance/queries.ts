@@ -15,12 +15,30 @@ export async function listAttendancePeople(siteId: number): Promise<AttendancePe
   return (data as unknown as AttendancePerson[]) ?? [];
 }
 
-/** Bir günün işaretli personel kimlikleri. */
-export async function listPresentIds(siteId: number, date: string): Promise<number[]> {
+export type PresentRow = {
+  personnelId: number;
+  note: string | null;
+  /** İşareti koyan kişinin adı (varsa) */
+  markedBy: string | null;
+  /** ISO zaman damgası */
+  markedAt: string;
+};
+
+/** Bir günün işaretli personeli; not, işaretleyen ve saat bilgisiyle. */
+export async function listPresent(siteId: number, date: string): Promise<PresentRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("attendance").select("personnel_id").eq("site_id", siteId).eq("work_date", date);
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("personnel_id, note, created_at, users(full_name)")
+    .eq("site_id", siteId)
+    .eq("work_date", date);
   if (error) throw new Error("attendance okunamadı");
-  return (data ?? []).map((r) => r.personnel_id as number);
+  return ((data ?? []) as unknown as { personnel_id: number; note: string | null; created_at: string; users: { full_name: string } | null }[]).map((r) => ({
+    personnelId: r.personnel_id,
+    note: r.note,
+    markedBy: r.users?.full_name ?? null,
+    markedAt: r.created_at,
+  }));
 }
 
 /** PostgREST varsayılan 1000 satır sınırını aşmamak için sayfalayarak okur (500 kişi × 31 gün = 15.500 satır). */
@@ -38,6 +56,8 @@ async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ dat
 export type MonthData = {
   /** personnel_id → işaretli günler ("YYYY-MM-DD") */
   presentByPerson: Map<number, Set<string>>;
+  /** "personnel_id|YYYY-MM-DD" → not */
+  notes: Map<string, string>;
   /** personnel_id → aylık gün sayısı (monthly_attendance_summary view'inden) */
   totals: Map<number, number>;
 };
@@ -46,10 +66,10 @@ export type MonthData = {
 export async function getMonthData(siteId: number, firstDay: string, lastDay: string): Promise<MonthData> {
   const supabase = await createClient();
 
-  const rows = await fetchAll<{ personnel_id: number; work_date: string }>((from, to) =>
+  const rows = await fetchAll<{ personnel_id: number; work_date: string; note: string | null }>((from, to) =>
     supabase
       .from("attendance")
-      .select("personnel_id, work_date")
+      .select("personnel_id, work_date, note")
       .eq("site_id", siteId)
       .gte("work_date", firstDay)
       .lte("work_date", lastDay)
@@ -58,7 +78,9 @@ export async function getMonthData(siteId: number, firstDay: string, lastDay: st
   );
 
   const presentByPerson = new Map<number, Set<string>>();
+  const notes = new Map<string, string>();
   for (const r of rows) {
+    if (r.note) notes.set(`${r.personnel_id}|${r.work_date}`, r.note);
     const set = presentByPerson.get(r.personnel_id) ?? new Set<string>();
     set.add(r.work_date);
     presentByPerson.set(r.personnel_id, set);
@@ -75,7 +97,7 @@ export async function getMonthData(siteId: number, firstDay: string, lastDay: st
   );
   const totals = new Map(summary.map((r) => [r.personnel_id, r.days_worked]));
 
-  return { presentByPerson, totals };
+  return { presentByPerson, notes, totals };
 }
 
 /** Dashboard "Bugün Gelen Personel" kartı. */

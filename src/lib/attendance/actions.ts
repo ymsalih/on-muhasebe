@@ -71,3 +71,33 @@ export async function saveAttendance(input: z.input<typeof inputSchema>): Promis
   revalidatePath(`/sites/${siteId}`);
   return { ok: true };
 }
+
+const noteSchema = z.object({
+  siteId: z.number().int().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçersiz tarih."),
+  personnelId: z.number().int().positive(),
+  note: z.string().trim().max(200, "Not en fazla 200 karakter olabilir."),
+});
+
+/** İşaretlenmiş bir güne kısa not ekler/günceller/siler (boş not = sil). Yetki RLS'tedir (yalnızca `note` sütunu güncellenebilir). */
+export async function setAttendanceNote(input: z.input<typeof noteSchema>): Promise<Result> {
+  await requireUser();
+  const parsed = noteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Geçersiz istek." };
+  const { siteId, date, personnelId, note } = parsed.data;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("attendance")
+    .update({ note: note === "" ? null : note })
+    .eq("site_id", siteId)
+    .eq("work_date", date)
+    .eq("personnel_id", personnelId)
+    .select("id");
+
+  if (error) return { ok: false, error: GENERIC_ERROR };
+  if (!data || data.length === 0) return { ok: false, error: "Not eklemek için önce puantajı kaydedin ya da yetkiniz yok." };
+
+  revalidatePath(`/sites/${siteId}/puantaj`);
+  return { ok: true };
+}
