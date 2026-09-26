@@ -62,7 +62,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
         { href: base, label: "Ana Sayfa", icon: LayoutDashboard, enabled: true, exact: true },
         { href: `${base}/kasa`, label: "Kasa", icon: Wallet, enabled: false },
         { href: `${base}/puantaj`, label: "Puantaj", icon: ClipboardCheck, enabled: true },
-        { href: `${base}/cari`, label: "Cari", icon: BookUser, enabled: false },
+        { href: `${base}/cari`, label: "Cari", icon: BookUser, enabled: true },
       ] satisfies NavItem[],
       // "Daha Fazla" içine toplanan ekranlar
       more: [
