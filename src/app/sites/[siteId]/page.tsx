@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { FilePlus2, Receipt, UserCheck, Wallet, type LucideIcon } from "lucide-react";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { requireUser } from "@/lib/auth/session";
+import { countPresent } from "@/lib/attendance/queries";
+import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
 const ACTION_CLASS = "flex min-h-12 items-center justify-center gap-2 rounded-xl border bg-card px-4 text-sm font-medium";
@@ -18,8 +20,8 @@ function ComingSoon({ label, icon: Icon }: { label: string; icon: LucideIcon }) 
 
 /**
  * Şantiye ana sayfası (CLAUDE.md 7.3-C).
- * Kasa ve puantaj tabloları henüz yok (Faz 5 / Faz 7): kartlar "—" gösterir, gerçek veriyle
- * bağlanma Faz 7'de yapılır. Sahte 0 değerleri gösterilmez.
+ * "Bugün Gelen Personel" puantajdan (Faz 5) gelir. Kasa tablosu henüz yok (Faz 7): gelir/gider kartları "—"
+ * gösterir, gerçek veriyle bağlanma Faz 7'de yapılır. Sahte 0 değerleri gösterilmez.
  */
 export default async function SiteHomePage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId: rawId } = await params;
@@ -28,10 +30,11 @@ export default async function SiteHomePage({ params }: { params: Promise<{ siteI
 
   const profile = await requireUser();
   const canWrite = canWriteRole(await getSiteRole(siteId, profile.id));
+  const presentToday = await countPresent(siteId, todayInIstanbul());
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <SummaryCards monthIncome={null} monthExpense={null} presentToday={null} />
+      <SummaryCards monthIncome={null} monthExpense={null} presentToday={presentToday} />
 
       <section aria-labelledby="recent-heading" className="rounded-xl border bg-card">
         <div className="flex items-center justify-between border-b px-4 py-3">
@@ -53,7 +56,10 @@ export default async function SiteHomePage({ params }: { params: Promise<{ siteI
 
       <section aria-label="Hızlı eylemler" className="grid gap-3 sm:grid-cols-3">
         <ComingSoon label="Gelir/Gider Ekle" icon={Wallet} />
-        <ComingSoon label="Günlük Gelenler" icon={UserCheck} />
+        <Link href={`/sites/${siteId}/puantaj`} className={`${ACTION_CLASS} hover:bg-muted/50`}>
+          <UserCheck className="size-5" aria-hidden />
+          Günlük Gelenler
+        </Link>
         {canWrite ? (
           <Link href={`/sites/${siteId}/irsaliye/yeni`} className={`${ACTION_CLASS} hover:bg-muted/50`}>
             <FilePlus2 className="size-5" aria-hidden />
