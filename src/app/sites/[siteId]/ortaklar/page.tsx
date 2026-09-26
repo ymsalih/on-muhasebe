@@ -11,7 +11,6 @@ type Row = {
   id: number;
   user_id: string;
   role: SiteMemberRole;
-  share_percentage: number | null;
   users: { full_name: string; email: string } | null;
 };
 
@@ -29,7 +28,7 @@ export default async function SitePartnersPage({ params }: { params: Promise<{ s
     requireUser(),
     supabase
       .from("site_members")
-      .select("id, user_id, role, share_percentage, users(full_name, email)")
+      .select("id, user_id, role, users(full_name, email)")
       .eq("site_id", siteId)
       .order("joined_at"),
   ]);
@@ -41,7 +40,6 @@ export default async function SitePartnersPage({ params }: { params: Promise<{ s
     fullName: r.users?.full_name ?? "—",
     email: r.users?.email ?? "",
     role: r.role,
-    sharePercentage: r.share_percentage === null ? null : Number(r.share_percentage),
   }));
   const isOwner = rows.some((r) => r.user_id === profile.id && r.role === "owner");
 

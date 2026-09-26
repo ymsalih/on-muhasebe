@@ -15,7 +15,6 @@ export type MemberRow = {
   fullName: string;
   email: string;
   role: SiteMemberRole;
-  sharePercentage: number | null;
 };
 
 const selectClass =
@@ -41,7 +40,6 @@ export function SitePartners({
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<UserSearchResult | null>(null);
   const [role, setRole] = useState<(typeof ADDABLE_ROLES)[number]>("partner");
-  const [share, setShare] = useState("");
 
   // Yazmayı bıraktıktan 300 ms sonra ara; eski isteklerin sonucu yenisini ezmesin.
   useEffect(() => {
@@ -71,16 +69,14 @@ export function SitePartners({
   function onAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!selected) return setError("Eklenecek ortağı arayıp seçin.");
-    const sharePercentage = share.trim() === "" ? null : Number(share.trim().replace(",", "."));
     setError(null);
     startTransition(async () => {
-      const res = await addSiteMember({ siteId, userId: selected.id, role, sharePercentage }).catch(() => null);
+      const res = await addSiteMember({ siteId, userId: selected.id, role }).catch(() => null);
       if (!res) return setError("Ortak eklenemedi, bağlantınızı kontrol edip tekrar deneyin.");
       if (!res.ok) return setError(res.error);
       setSelected(null);
       setQuery("");
       setResults(null);
-      setShare("");
       setRole("partner");
       router.refresh();
     });
@@ -113,7 +109,7 @@ export function SitePartners({
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {SITE_MEMBER_ROLE_LABELS[m.role]}
-                  {m.sharePercentage !== null && ` · %${m.sharePercentage}`} · {m.email}
+                   · {m.email}
                 </p>
               </div>
               {isOwner && m.role !== "owner" && (
@@ -202,8 +198,7 @@ export function SitePartners({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
+          <div className="space-y-1">
               <label htmlFor="member-role" className="text-xs text-muted-foreground">
                 Rol
               </label>
@@ -214,13 +209,6 @@ export function SitePartners({
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="member-share" className="text-xs text-muted-foreground">
-                Kâr payı % (opsiyonel)
-              </label>
-              <Input id="member-share" inputMode="decimal" className="h-11" value={share} onChange={(e) => setShare(e.target.value)} />
-            </div>
           </div>
 
           <Button type="submit" className="h-12 w-full text-base" disabled={pending || !selected}>

@@ -65,7 +65,7 @@ try {
   check("arama sonucunda mevcut üyeler (kendisi) yok", (sSelf.data as unknown[] | null)?.length === 0);
 
   // --- Ortak 1, ortak 2'yi ekler ---
-  const add = await p1.from("site_members").insert({ site_id: siteId, user_id: ids.p2, role: "partner", share_percentage: 40 });
+  const add = await p1.from("site_members").insert({ site_id: siteId, user_id: ids.p2, role: "partner" });
   check("owner mevcut bir ortağı partner olarak ekleyebildi", !add.error, add.error?.message);
   const p2sees = await p2.from("sites").select("id").eq("id", siteId);
   check("eklenen ortak şantiyeyi artık görüyor", p2sees.data?.length === 1);

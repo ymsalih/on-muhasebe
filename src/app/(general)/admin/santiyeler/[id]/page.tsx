@@ -18,7 +18,6 @@ type SiteDetail = {
   site_members: {
     id: number;
     role: SiteMemberRole;
-    share_percentage: number | null;
     users: { full_name: string; email: string } | null;
   }[];
 };
@@ -33,7 +32,7 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
   const supabase = await createClient();
   const { data } = await supabase
     .from("sites")
-    .select("id, name, address, start_date, status, site_members(id, role, share_percentage, users(full_name, email))")
+    .select("id, name, address, start_date, status, site_members(id, role, users(full_name, email))")
     .eq("id", siteId)
     .maybeSingle();
 
@@ -66,7 +65,6 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
                 <p className="truncate text-sm font-medium">{m.users?.full_name ?? "—"}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {SITE_MEMBER_ROLE_LABELS[m.role]}
-                  {m.share_percentage !== null && ` · %${Number(m.share_percentage)}`}
                   {m.users && ` · ${m.users.email}`}
                 </p>
               </li>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Building2, CalendarDays, ChevronRight, MapPin, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Şantiyeler — Şantiye Ön Muhasebe" };
@@ -18,18 +18,25 @@ type SiteCardData = {
 
 /**
  * Şantiye seçim ekranı (CLAUDE.md 7.3-B). Liste RLS ile süzülür: ortak yalnızca üyesi olduğu,
- * admin tüm şantiyeleri (salt görüntüleme) görür. "Yeni Şantiye Ekle" her ortağın işidir; admin ekleyemez. Kartlardaki "bu ay net bakiye" özeti kasa tablosu geldiğinde (Faz 7) eklenecek.
+ * admin tüm şantiyeleri (salt görüntüleme) görür. "Yeni Şantiye Ekle" her ortağın işidir; admin ekleyemez. Her kartta şantiyenin toplam net bakiyesi (gelir − gider) gösterilir; birleşik "tüm şantiyeler" toplamı bilinçli olarak YOK (şantiyeler izole).
  */
 export default async function SitesPage() {
   const supabase = await createClient();
-  const [profile, { data }] = await Promise.all([
+  const [profile, { data }, { data: totalsData }] = await Promise.all([
     requireUser(),
     supabase
       .from("sites")
       .select("id, name, address, start_date, status")
       .order("status") // 'active' 'closed'tan önce gelir
       .order("name"),
+    supabase.rpc("get_sites_cash_totals"),
   ]);
+  const net = new Map(
+    ((totalsData as { site_id: number; income: number | string; expense: number | string }[] | null) ?? []).map((r) => [
+      r.site_id,
+      Number(r.income) - Number(r.expense),
+    ]),
+  );
   const isAdmin = profile.role === "admin";
   const sites = (data as SiteCardData[] | null) ?? [];
 
@@ -102,6 +109,17 @@ export default async function SitesPage() {
                     Başlangıç: {formatDate(site.start_date)}
                   </span>
                 )}
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="block text-[11px] text-muted-foreground">Net bakiye</span>
+                <span
+                  className={cn(
+                    "block text-sm font-semibold tabular-nums",
+                    (net.get(site.id) ?? 0) >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+                  )}
+                >
+                  {formatCurrency(net.get(site.id) ?? 0)}
+                </span>
               </span>
               <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </Link>

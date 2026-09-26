@@ -23,10 +23,5 @@ export const addMemberSchema = z.object({
   siteId: z.number().int().positive(),
   userId: z.string().uuid("Geçersiz kullanıcı."),
   role: z.enum(ADDABLE_ROLES, "Rol olarak Ortak veya Görüntüleyici seçin."),
-  sharePercentage: z
-    .number("Yüzde sayı olmalı.")
-    .min(0, "Yüzde 0'dan küçük olamaz.")
-    .max(100, "Yüzde 100'den büyük olamaz.")
-    .nullable(),
 });
 export type AddMemberValues = z.infer<typeof addMemberSchema>;

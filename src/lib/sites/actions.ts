@@ -67,21 +67,13 @@ export async function addSiteMember(input: AddMemberValues): Promise<Result> {
 
   const parsed = addMemberSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Girilen bilgiler geçersiz." };
-  const { siteId, userId, role, sharePercentage } = parsed.data;
+  const { siteId, userId, role } = parsed.data;
 
   const supabase = await createClient();
 
-  if (sharePercentage !== null) {
-    const { data: current } = await supabase.from("site_members").select("share_percentage").eq("site_id", siteId);
-    const total = (current ?? []).reduce((sum, m) => sum + Number(m.share_percentage ?? 0), 0);
-    if (total + sharePercentage > 100.0001) {
-      return { ok: false, error: `Kâr payları toplamı 100'ü geçemez (şu an %${total} dağıtılmış).` };
-    }
-  }
-
   const { error } = await supabase
     .from("site_members")
-    .insert({ site_id: siteId, user_id: userId, role, share_percentage: sharePercentage });
+    .insert({ site_id: siteId, user_id: userId, role });
 
   if (error) {
     if (error.code === "23505") return { ok: false, error: "Bu ortak zaten şantiyenin üyesi." };
