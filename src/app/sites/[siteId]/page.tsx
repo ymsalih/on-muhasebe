@@ -1,12 +1,34 @@
-import { FilePlus2, Receipt, UserCheck, Wallet } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { FilePlus2, Receipt, UserCheck, Wallet, type LucideIcon } from "lucide-react";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { requireUser } from "@/lib/auth/session";
+import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
+
+const ACTION_CLASS = "flex min-h-12 items-center justify-center gap-2 rounded-xl border bg-card px-4 text-sm font-medium";
+
+function ComingSoon({ label, icon: Icon }: { label: string; icon: LucideIcon }) {
+  return (
+    <span aria-disabled="true" title="Yakında" className={`${ACTION_CLASS} cursor-not-allowed text-muted-foreground/60`}>
+      <Icon className="size-5" aria-hidden />
+      {label}
+    </span>
+  );
+}
 
 /**
  * Şantiye ana sayfası (CLAUDE.md 7.3-C).
  * Kasa ve puantaj tabloları henüz yok (Faz 5 / Faz 7): kartlar "—" gösterir, gerçek veriyle
  * bağlanma Faz 7'de yapılır. Sahte 0 değerleri gösterilmez.
  */
-export default function SiteHomePage() {
+export default async function SiteHomePage({ params }: { params: Promise<{ siteId: string }> }) {
+  const { siteId: rawId } = await params;
+  const siteId = Number(rawId);
+  if (!Number.isInteger(siteId)) notFound();
+
+  const profile = await requireUser();
+  const canWrite = canWriteRole(await getSiteRole(siteId, profile.id));
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <SummaryCards monthIncome={null} monthExpense={null} presentToday={null} />
@@ -30,21 +52,16 @@ export default function SiteHomePage() {
       </section>
 
       <section aria-label="Hızlı eylemler" className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Gelir/Gider Ekle", icon: Wallet },
-          { label: "Günlük Gelenler", icon: UserCheck },
-          { label: "İrsaliye Ekle", icon: FilePlus2 },
-        ].map(({ label, icon: Icon }) => (
-          <span
-            key={label}
-            aria-disabled="true"
-            title="Yakında"
-            className="flex min-h-12 cursor-not-allowed items-center justify-center gap-2 rounded-xl border bg-card px-4 text-sm font-medium text-muted-foreground/60"
-          >
-            <Icon className="size-5" aria-hidden />
-            {label}
-          </span>
-        ))}
+        <ComingSoon label="Gelir/Gider Ekle" icon={Wallet} />
+        <ComingSoon label="Günlük Gelenler" icon={UserCheck} />
+        {canWrite ? (
+          <Link href={`/sites/${siteId}/irsaliye/yeni`} className={`${ACTION_CLASS} hover:bg-muted/50`}>
+            <FilePlus2 className="size-5" aria-hidden />
+            İrsaliye Ekle
+          </Link>
+        ) : (
+          <ComingSoon label="İrsaliye Ekle" icon={FilePlus2} />
+        )}
       </section>
     </div>
   );

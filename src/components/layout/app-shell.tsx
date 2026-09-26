@@ -67,7 +67,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       // "Daha Fazla" içine toplanan ekranlar
       more: [
         { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
-        { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: false },
+        { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: true },
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: false },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: false },
       ] satisfies NavItem[],
