@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["exceljs", "pdfmake"],
   outputFileTracingIncludes: {
     "/sites/[siteId]/raporlar/export": ["./node_modules/pdfmake/build/fonts/Roboto/**"],
+    "/sites/[siteId]/malzeme/export": ["./node_modules/pdfmake/build/fonts/Roboto/**"],
   },
   experimental: {
     // İstemci yönlendirici önbelleği: 30 sn içinde tekrar ziyaret edilen sayfa (geri/ileri, menü) sunucuya gitmeden
