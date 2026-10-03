@@ -1,4 +1,4 @@
-/** RLS/doğruluk testi: materials, material_movements, stok eksiye düşme koruması ve get_material_summary RPC'si.
+/** RLS/doğruluk testi: material_entries (malzeme girişleri, maliyet) ve get_material_cost_breakdown RPC'si.
  *  Geçici hesap/şantiye açar, gerçek oturumlarla dener, sonunda hepsini siler.
  *  Çalıştırma: npm run test:rls:materials  (.env.local içinde SUPABASE_SERVICE_ROLE_KEY gerekir) */
 import { config } from "dotenv";
@@ -53,112 +53,104 @@ try {
   };
   const siteA = await mkSite("A", [["owner", "owner"], ["partner", "partner"], ["viewer", "viewer"]]);
   const siteB = await mkSite("B", [["owner2", "owner"]]);
-  const { data: matB } = await svc.from("materials").insert({ site_id: siteB, name: `B Malzemesi ${tag}`, unit: "adet" }).select("id").single();
 
   const c = {} as Record<Who, SupabaseClient>;
   for (const w of Object.keys(accounts) as Who[]) c[w] = await login(w);
 
-  // ---------- malzeme kartı ----------
-  const m1 = await c.partner.from("materials").insert({ site_id: siteA, name: `Çimento ${tag}`, variant: "CEM I 42,5", unit: "torba" }).select("id").single();
-  check("ortak malzeme ekleyebilir", !m1.error, m1.error?.message);
-  const mid = m1.data!.id as number;
-  const dup = await c.partner.from("materials").insert({ site_id: siteA, name: `çimento ${tag}`, variant: "cem i 42,5", unit: "torba" });
-  check("tekrar eden malzeme reddedilir (23505)", dup.error?.code === "23505", JSON.stringify(dup.error));
-  check("aynı ad, farklı cins eklenebilir", !(await c.partner.from("materials").insert({ site_id: siteA, name: `Çimento ${tag}`, variant: "CEM II", unit: "torba" })).error);
-  check("birimsiz malzeme reddedilir", !!(await c.partner.from("materials").insert({ site_id: siteA, name: `Birimsiz ${tag}`, unit: "" })).error);
+  const row = (who: Who, over: Record<string, unknown> = {}) => ({
+    site_id: siteA, entry_date: "2026-09-10", name: `Çimento ${tag}`, variant: "CEM I", unit: "torba", quantity: 100, unit_price: 50, created_by: ids[who], ...over,
+  });
+
+  // ---------- ekleme ----------
+  const e1 = await c.owner.from("material_entries").insert(row("owner")).select("id, total_amount").single();
+  check("sahip malzeme girişi ekleyebilir", !e1.error, e1.error?.message);
+  check("maliyet = miktar × birim fiyat (5000)", Number(e1.data?.total_amount) === 5000, String(e1.data?.total_amount));
+  const e2 = await c.partner.from("material_entries").insert(row("partner", { name: `Demir ${tag}`, variant: "Ø12", unit: "kg", quantity: 12.5, unit_price: 80.25, used_for: "B Blok temel", supplier: "Tedarikçi" })).select("id, total_amount").single();
+  check("ortak malzeme girişi ekleyebilir", !e2.error, e2.error?.message);
+  check("kuruşlu maliyet doğru yuvarlanır (12,5 × 80,25 = 1003,13)", Number(e2.data?.total_amount) === 1003.13, String(e2.data?.total_amount));
+  const e3 = await c.partner.from("material_entries").insert(row("partner", { quantity: 10, unit_price: 100, entry_date: "2026-08-05" })).select("id").single();
+  check("ağustos girişi eklenebilir (10 × 100)", !e3.error);
+  check("fiyatsız giriş reddedilir (fiyat zorunlu)", !!(await c.owner.from("material_entries").insert(row("owner", { unit_price: null }))).error);
+  check("negatif fiyat reddedilir", !!(await c.owner.from("material_entries").insert(row("owner", { unit_price: -1 }))).error);
+  check("sıfır fiyat serbest (hediye/bağış malzeme)", !(await c.owner.from("material_entries").insert(row("owner", { unit_price: 0, name: `Bağış ${tag}` }))).error);
+  check("sıfır miktar reddedilir", !!(await c.owner.from("material_entries").insert(row("owner", { quantity: 0 }))).error);
+  check("birimsiz giriş reddedilir", !!(await c.owner.from("material_entries").insert(row("owner", { unit: "" }))).error);
+  check("2 harften kısa ad reddedilir", !!(await c.owner.from("material_entries").insert(row("owner", { name: "x" }))).error);
+  check("maliyet sütunu elle yazılamaz", !!(await c.owner.from("material_entries").insert(row("owner", { total_amount: 1 }))).error);
+  check("başkası adına (created_by) giriş yazılamaz", !!(await c.partner.from("material_entries").insert(row("owner"))).error);
   for (const w of ["viewer", "admin", "outsider", "owner2"] as Who[]) {
-    check(`${w}: malzeme ekleyemez`, !!(await c[w].from("materials").insert({ site_id: siteA, name: `Yetkisiz ${w} ${tag}`, unit: "adet" })).error);
+    check(`${w}: giriş ekleyemez`, !!(await c[w].from("material_entries").insert(row(w))).error);
   }
-  check("üye olmayan malzemeleri göremez", ((await c.outsider.from("materials").select("id").eq("site_id", siteA)).data ?? []).length === 0);
-  check("başka şantiyenin ortağı A'nın malzemelerini göremez", ((await c.owner2.from("materials").select("id").eq("site_id", siteA)).data ?? []).length === 0);
-  check("viewer ve admin malzemeleri görebilir", ((await c.viewer.from("materials").select("id").eq("site_id", siteA)).data ?? []).length === 2 && ((await c.admin.from("materials").select("id").eq("site_id", siteA)).data ?? []).length === 2);
-  check("malzemenin şantiyesi (site_id) değiştirilemez", !!(await c.partner.from("materials").update({ site_id: siteB }).eq("id", mid)).error);
-  check("malzeme adı güncellenebilir", (await c.partner.from("materials").update({ name: `Çimento Y ${tag}` }).eq("id", mid).select("id")).data?.length === 1);
-  check("viewer malzeme güncelleyemez", denied(await c.viewer.from("materials").update({ name: "x y z" }).eq("id", mid).select("id")));
+  await c.owner2.from("material_entries").insert(row("owner2", { site_id: siteB, name: `B malzemesi ${tag}`, quantity: 1, unit_price: 9999 }));
 
-  // ---------- hareketler ----------
-  const mv = (over: Record<string, unknown> = {}) => ({ site_id: siteA, material_id: mid, movement_type: "in", movement_date: "2026-09-10", quantity: 100, unit_price: 50, created_by: ids.partner, ...over });
-  const in1 = await c.partner.from("material_movements").insert(mv()).select("id").single();
-  check("ortak giriş ekleyebilir (100 × 50)", !in1.error, in1.error?.message);
-  const in2 = await c.partner.from("material_movements").insert(mv({ quantity: 100, unit_price: 70, movement_date: "2026-09-12" })).select("id").single();
-  check("ikinci giriş (100 × 70)", !in2.error);
-  const out1 = await c.partner.from("material_movements").insert(mv({ movement_type: "out", quantity: 60, unit_price: null, counterparty: "Taşeron A", movement_date: "2026-09-15" })).select("id").single();
-  check("ortak çıkış ekleyebilir (60)", !out1.error, out1.error?.message);
+  // ---------- okuma / izolasyon ----------
+  check("üye olmayan girişleri göremez", ((await c.outsider.from("material_entries").select("id").eq("site_id", siteA)).data ?? []).length === 0);
+  check("başka şantiyenin ortağı A'yı göremez", ((await c.owner2.from("material_entries").select("id").eq("site_id", siteA)).data ?? []).length === 0);
+  check("viewer girişleri görebilir (5)", ((await c.viewer.from("material_entries").select("id").eq("site_id", siteA)).data ?? []).length === 4);
+  check("admin girişleri görebilir", ((await c.admin.from("material_entries").select("id").eq("site_id", siteA)).data ?? []).length === 4);
+  check("anonim okuyamaz", denied(await createClient(url, anon).from("material_entries").select("id")));
 
-  check("çıkışa fiyat yazılamaz", !!(await c.partner.from("material_movements").insert(mv({ movement_type: "out", quantity: 1, unit_price: 5 }))).error);
-  check("sıfır miktar reddedilir", !!(await c.partner.from("material_movements").insert(mv({ quantity: 0 }))).error);
-  check("negatif fiyat reddedilir", !!(await c.partner.from("material_movements").insert(mv({ unit_price: -1 }))).error);
-  check("geçersiz tür reddedilir", !!(await c.partner.from("material_movements").insert(mv({ movement_type: "transfer" }))).error);
-  check("başka şantiyenin malzemesine hareket yazılamaz (bileşik FK)", !!(await c.owner.from("material_movements").insert(mv({ material_id: matB!.id, created_by: ids.owner }))).error);
-  check("başkası adına (created_by) hareket yazılamaz", !!(await c.partner.from("material_movements").insert(mv({ created_by: ids.owner }))).error);
-  for (const w of ["viewer", "admin", "outsider", "owner2"] as Who[]) {
-    check(`${w}: hareket ekleyemez`, !!(await c[w].from("material_movements").insert(mv({ created_by: ids[w] }))).error);
-  }
+  // ---------- kullanım yeri sonradan eklenir ----------
+  const up = await c.owner.from("material_entries").update({ used_for: "A Blok kolon betonu" }).eq("id", e1.data!.id).select("used_for, total_amount");
+  check("kullanım yeri sonradan eklenebilir", up.data?.[0]?.used_for === "A Blok kolon betonu" && Number(up.data[0].total_amount) === 5000, JSON.stringify(up));
+  const up2 = await c.partner.from("material_entries").update({ unit_price: 60 }).eq("id", e1.data!.id).select("total_amount");
+  check("ortak başkasının girişini de güncelleyebilir; maliyet yeniden hesaplanır (6000)", Number(up2.data?.[0]?.total_amount) === 6000, JSON.stringify(up2));
+  await c.owner.from("material_entries").update({ unit_price: 50 }).eq("id", e1.data!.id);
+  check("viewer güncelleyemez", denied(await c.viewer.from("material_entries").update({ used_for: "x" }).eq("id", e1.data!.id).select("id")));
+  check("admin güncelleyemez", denied(await c.admin.from("material_entries").update({ used_for: "x" }).eq("id", e1.data!.id).select("id")));
+  check("üye olmayan güncelleyemez", denied(await c.outsider.from("material_entries").update({ used_for: "x" }).eq("id", e1.data!.id).select("id")));
+  check("şantiye (site_id) değiştirilemez", !!(await c.owner.from("material_entries").update({ site_id: siteB }).eq("id", e1.data!.id)).error);
+  check("giren (created_by) değiştirilemez", !!(await c.owner.from("material_entries").update({ created_by: ids.partner }).eq("id", e1.data!.id)).error);
+  check("maliyet sütunu güncellenemez", !!(await c.owner.from("material_entries").update({ total_amount: 1 }).eq("id", e1.data!.id)).error);
 
-  // ---------- stok eksiye düşemez ----------
-  // stok = 200 − 60 = 140
-  const over = await c.partner.from("material_movements").insert(mv({ movement_type: "out", quantity: 141, unit_price: null }));
-  check("stoktan fazla çıkış reddedilir (141 > 140)", over.error?.code === "23514" && /Stok eksiye/.test(over.error.message), JSON.stringify(over.error));
-  check("tam stok kadar çıkış serbest (140)", !(await c.partner.from("material_movements").insert(mv({ movement_type: "out", quantity: 140, unit_price: null, movement_date: "2026-09-16" }))).error);
-  const zero = await c.partner.from("material_movements").select("id").eq("movement_type", "out").eq("quantity", 140).single();
-  check("stok 0'a düştü; 1 daha çıkış reddedilir", !!(await c.partner.from("material_movements").insert(mv({ movement_type: "out", quantity: 1, unit_price: null }))).error);
-  check("kullanılmış girişin miktarı azaltılamaz", !!(await c.partner.from("material_movements").update({ quantity: 10 }).eq("id", in1.data!.id)).error);
-  check("kullanılmış giriş silinemez", !!(await c.partner.from("material_movements").delete().eq("id", in1.data!.id)).error);
-  check("çıkış silinince stok geri gelir", (await c.partner.from("material_movements").delete().eq("id", zero.data!.id).select("id")).data?.length === 1);
-  check("giriş miktarı artırılabilir", (await c.partner.from("material_movements").update({ quantity: 120 }).eq("id", in1.data!.id).select("id")).data?.length === 1);
+  // ---------- maliyet kırılımı ----------
+  // A şantiyesi, 1–30 Eylül: owner: 5000 (+ 0 bağış) ; partner: 1003,13
+  const range = { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" };
+  const byPartner = await c.owner.rpc("get_material_cost_breakdown", { ...range, p_by: "partner" });
+  const bp = (byPartner.data as { group_key: string; label: string; entry_count: number; total: string }[]) ?? [];
+  check("ortak bazında: 2 ortak, en pahalı başta (owner 5000, partner 1003,13)", bp.length === 2 && Number(bp[0].total) === 5000 && bp[0].group_key === ids.owner && Number(bp[1].total) === 1003.13, JSON.stringify(bp));
+  check("ortak bazında: owner'ın 2 girişi (çimento + bağış)", bp[0]?.entry_count === 2);
+  check("ortak bazında: ortağın adı görünür", bp[1]?.label === `T partner ${tag}`, bp[1]?.label);
+  const total = bp.reduce((s, r) => s + Number(r.total), 0);
+  check("dönem toplamı 6003,13", Math.round(total * 100) === 600313, String(total));
+  const byItem = await c.owner.rpc("get_material_cost_breakdown", { ...range, p_by: "item" });
+  const bi = (byItem.data as { label: string; unit: string; total_quantity: string; total: string }[]) ?? [];
+  check("malzeme bazında: Çimento 100 torba 5000 başta", bi[0]?.label === `Çimento ${tag} · CEM I` && bi[0].unit === "torba" && Number(bi[0].total_quantity) === 100 && Number(bi[0].total) === 5000, JSON.stringify(bi));
+  check("malzeme bazında: 3 farklı malzeme (çimento, demir, bağış)", bi.length === 3);
+  const byUsage = await c.owner.rpc("get_material_cost_breakdown", { ...range, p_by: "usage" });
+  const bu = (byUsage.data as { label: string; total: string }[]) ?? [];
+  check("kullanım yerine göre: A Blok kolon betonu 5000", bu.some((r) => r.label === "A Blok kolon betonu" && Number(r.total) === 5000), JSON.stringify(bu));
+  check("kullanım yerine göre: B Blok temel 1003,13", bu.some((r) => r.label === "B Blok temel" && Number(r.total) === 1003.13));
+  check("kullanım yerine göre: yeri girilmemiş giriş 'Belirtilmemiş' altında (0 ₺ bağış)", bu.some((r) => r.label === "Belirtilmemiş"));
+  const aug = await c.owner.rpc("get_material_cost_breakdown", { p_site_id: siteA, p_from: "2026-08-01", p_to: "2026-08-31", p_by: "partner" });
+  check("ağustos dönemi: yalnızca ağustos girişi (1000)", (aug.data as { total: string }[])?.length === 1 && Number((aug.data as { total: string }[])[0].total) === 1000);
+  check("geçersiz kırılım reddedilir", !!(await c.owner.rpc("get_material_cost_breakdown", { ...range, p_by: "year" })).error);
+  check("viewer kırılımı okuyabilir", ((await c.viewer.rpc("get_material_cost_breakdown", { ...range, p_by: "partner" })).data as unknown[])?.length === 2);
+  check("admin kırılımı okuyabilir", ((await c.admin.rpc("get_material_cost_breakdown", { ...range, p_by: "partner" })).data as unknown[])?.length === 2);
+  check("üye olmayan boş görür", ((await c.outsider.rpc("get_material_cost_breakdown", { ...range, p_by: "partner" })).data as unknown[])?.length === 0);
+  const leak = await c.owner2.rpc("get_material_cost_breakdown", { ...range, p_by: "item" });
+  check("başka şantiyenin ortağı A'yı göremez", ((leak.data as unknown[]) ?? []).length === 0);
+  const ownB = await c.owner2.rpc("get_material_cost_breakdown", { p_site_id: siteB, p_from: "2026-09-01", p_to: "2026-09-30", p_by: "item" });
+  check("B'nin sahibi kendi şantiyesini görür (1 malzeme, 9999)", ((ownB.data as { total: string }[]) ?? []).length === 1 && Number((ownB.data as { total: string }[])[0].total) === 9999);
+  const bB = await c.owner.rpc("get_material_cost_breakdown", { p_site_id: siteB, p_from: "2026-09-01", p_to: "2026-09-30", p_by: "item" });
+  check("A'nın sahibi B şantiyesini göremez (9999 sızmaz)", ((bB.data as unknown[]) ?? []).length === 0);
+  check("anonim kırılım çağıramaz", !!(await createClient(url, anon).rpc("get_material_cost_breakdown", { ...range, p_by: "partner" })).error);
 
-  // ---------- eşzamanlı çıkışlar: toplam stoğu aşamaz ----------
-  const mc = (await c.partner.from("materials").insert({ site_id: siteA, name: `Eşzamanlı ${tag}`, unit: "adet" }).select("id").single()).data!.id as number;
-  await c.partner.from("material_movements").insert(mv({ material_id: mc, quantity: 10, unit_price: 1 }));
-  const race = await Promise.all(Array.from({ length: 5 }, () => c.partner.from("material_movements").insert(mv({ material_id: mc, movement_type: "out", quantity: 4, unit_price: null }))));
-  const okCount = race.filter((r) => !r.error).length;
-  const sum = ((await svc.from("material_movements").select("movement_type, quantity").eq("material_id", mc)).data ?? []).reduce((s, r) => s + (r.movement_type === "in" ? Number(r.quantity) : -Number(r.quantity)), 0);
-  check("5 eşzamanlı çıkışta stok eksiye düşmez (en çok 2 başarılı)", okCount === 2 && sum === 2, `başarılı=${okCount}, stok=${sum}`);
-
-  // ---------- güncelleme alanları ----------
-  check("hareketin malzemesi değiştirilemez", !!(await c.partner.from("material_movements").update({ material_id: mc }).eq("id", in2.data!.id)).error);
-  check("hareketin türü değiştirilemez", !!(await c.partner.from("material_movements").update({ movement_type: "out" }).eq("id", in2.data!.id)).error);
-  check("viewer hareket güncelleyemez", denied(await c.viewer.from("material_movements").update({ note: "x" }).eq("id", in2.data!.id).select("id")));
-  check("üye olmayan hareket silemez", denied(await c.outsider.from("material_movements").delete().eq("id", out1.data!.id).select("id")));
-  check("admin hareket silemez", denied(await c.admin.from("material_movements").delete().eq("id", out1.data!.id).select("id")));
-  check("üye olmayan hareketleri göremez", ((await c.outsider.from("material_movements").select("id").eq("site_id", siteA)).data ?? []).length === 0);
-  check("admin hareketleri görebilir", ((await c.admin.from("material_movements").select("id").eq("site_id", siteA)).data ?? []).length > 0);
-  check("anonim okuyamaz", denied(await createClient(url, anon).from("material_movements").select("id")));
-
-  // ---------- malzeme silme ----------
-  check("hareketi olan malzeme silinemez", !!(await c.partner.from("materials").delete().eq("id", mid)).error);
-  const empty = (await c.partner.from("materials").insert({ site_id: siteA, name: `Boş ${tag}`, unit: "adet" }).select("id").single()).data!.id as number;
-  check("hareketi olmayan malzeme silinebilir", (await c.partner.from("materials").delete().eq("id", empty).select("id")).data?.length === 1);
-
-  // ---------- özet RPC ----------
-  // mid: girişler 120×50 + 100×70 = 6000 + 7000; ortalama = 13000/220 = 59,0909…; çıkış 60; stok 160
-  const sum1 = await c.partner.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" });
-  const row = (sum1.data as Record<string, string | number>[] | null)?.find((r) => r.material_id === mid);
-  check("özet: stok 160", Number(row?.stock_qty) === 160, JSON.stringify(row));
-  check("özet: ağırlıklı ortalama maliyet ≈ 59,09", Math.abs(Number(row?.avg_cost) - 13000 / 220) < 0.0001, String(row?.avg_cost));
-  check("özet: stok değeri = 160 × ortalama (9454,55)", Number(row?.stock_value) === Math.round((160 * 13000) / 220 * 100) / 100, String(row?.stock_value));
-  check("özet: dönem girişi 220 adet / 13000 ₺", Number(row?.period_in_qty) === 220 && Number(row?.period_in_amount) === 13000);
-  check("özet: dönem çıkışı 60 adet / 60 × ortalama (3545,45)", Number(row?.period_out_qty) === 60 && Number(row?.period_out_amount) === Math.round((60 * 13000) / 220 * 100) / 100, JSON.stringify(row));
-  const narrow = await c.partner.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-14", p_to: "2026-09-30" });
-  const nrow = (narrow.data as Record<string, string | number>[] | null)?.find((r) => r.material_id === mid);
-  check("dar dönemde yalnızca çıkış (giriş 0), stok yine 160", Number(nrow?.period_in_qty) === 0 && Number(nrow?.period_out_qty) === 60 && Number(nrow?.stock_qty) === 160);
-  check("özet: viewer okuyabilir", ((await c.viewer.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" })).data as unknown[]).length >= 2);
-  check("özet: admin okuyabilir", ((await c.admin.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" })).data as unknown[]).length >= 2);
-  check("özet: üye olmayan boş görür", ((await c.outsider.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" })).data as unknown[]).length === 0);
-  check("özet: başka şantiyenin ortağı A'yı göremez, B sızmaz", !JSON.stringify((await c.owner2.rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" })).data).includes(tag));
-  check("özet: anonim çağıramaz", !!(await createClient(url, anon).rpc("get_material_summary", { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" })).error);
+  // ---------- silme ----------
+  check("viewer giriş silemez", denied(await c.viewer.from("material_entries").delete().eq("id", e1.data!.id).select("id")));
+  check("admin giriş silemez", denied(await c.admin.from("material_entries").delete().eq("id", e1.data!.id).select("id")));
+  check("üye olmayan giriş silemez", denied(await c.outsider.from("material_entries").delete().eq("id", e1.data!.id).select("id")));
+  check("ortak giriş silebilir", (await c.partner.from("material_entries").delete().eq("id", e3.data!.id).select("id")).data?.length === 1);
 } catch (e) {
   check("test akışı hatasız çalıştı", false, String((e as Error).message ?? e));
 } finally {
-  // CASCADE ile hareketler ve malzemeler de silinir (iç içe silmede stok kontrolü atlanır)
   let delErr: string | undefined;
   if (siteIds.length) delErr = (await svc.from("sites").delete().in("id", siteIds)).error?.message;
   for (const id of Object.values(ids)) await svc.auth.admin.deleteUser(id);
   const left = await svc.from("users").select("id").in("id", Object.values(ids));
   const leftSites = await svc.from("sites").select("id").like("name", `% ${tag}`);
-  const leftMat = siteIds.length ? await svc.from("materials").select("id").in("site_id", siteIds) : { data: [] };
-  const leftMv = siteIds.length ? await svc.from("material_movements").select("id").in("site_id", siteIds) : { data: [] };
-  check("test verisi temizlendi (şantiye silinince stoklu kayıtlar da CASCADE ile gider)", !delErr && !left.data?.length && !leftSites.data?.length && !leftMat.data?.length && !leftMv.data?.length, delErr);
+  const leftRows = siteIds.length ? await svc.from("material_entries").select("id").in("site_id", siteIds) : { data: [] };
+  check("test verisi temizlendi", !delErr && !left.data?.length && !leftSites.data?.length && !leftRows.data?.length, delErr);
 }
 
 for (const [n, ok, d] of results) console.log(`${ok ? "PASS" : "FAIL"}  ${n}${!ok && d ? "  -> " + d : ""}`);

@@ -1,32 +1,45 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, FileText, Package, Warehouse } from "lucide-react";
-import { MaterialsBoard, type BoardView } from "@/components/materials/materials-board";
+import { FileSpreadsheet, FileText, ListChecks, Package, Wallet } from "lucide-react";
+import { MaterialEntries } from "@/components/materials/material-entries";
 import { RangeFilter, buildHref } from "@/components/cash/range-filter";
 import { requireUser } from "@/lib/auth/session";
 import { resolveRange } from "@/lib/cash/range";
-import { formatCurrency } from "@/lib/format";
-import { getMaterialSummary, listMovements, MOVEMENT_LIST_LIMIT } from "@/lib/materials/queries";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { ENTRY_LIST_LIMIT, getCostBreakdown, getSuggestions, listMaterialEntries, type BreakdownRow } from "@/lib/materials/queries";
+import type { Breakdown } from "@/lib/materials/schemas";
 import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Malzeme — Şantiye Ön Muhasebe" };
 
-const VIEWS: { key: BoardView; label: string }[] = [
-  { key: "stok", label: "Stok" },
-  { key: "hareket", label: "Hareketler" },
-  { key: "cikis", label: "Çıkış Raporu" },
+type ViewKey = "giris" | "ortak" | "malzeme" | "kullanim";
+const VIEWS: { key: ViewKey; label: string; by?: Breakdown }[] = [
+  { key: "giris", label: "Girişler" },
+  { key: "ortak", label: "Ortak Bazında", by: "partner" },
+  { key: "malzeme", label: "Malzeme Bazında", by: "item" },
+  { key: "kullanim", label: "Kullanım Yeri", by: "usage" },
 ];
+const EMPTY_TEXT: Record<Breakdown, string> = {
+  partner: "Bu dönemde malzeme girişi yok.",
+  item: "Bu dönemde malzeme girişi yok.",
+  usage: "Bu dönemde malzeme girişi yok.",
+};
+const HINT: Record<Breakdown, string> = {
+  partner: "Her ortağın bu şantiyede girdiği malzemelerin toplam maliyeti.",
+  item: "Aynı ad, cins ve birimdeki girişler birleştirilir. En pahalıdan başlar.",
+  usage: "Malzemelerin nerede/ne için kullanıldığına göre maliyet. Kullanım yeri girilmemiş girişler “Belirtilmemiş” altında toplanır.",
+};
 
-/** Malzeme / stok defteri: stok durumu, giriş-çıkış hareketleri ve çıkış raporu. Şantiye bazlı; genel kasadan bağımsız. */
+/** Malzeme girişleri: alınan malzemenin maliyeti ve nerede kullanıldığı. Şantiye bazlı; toplamlar ortak bazında da ayrı görünür. Genel kasadan bağımsızdır. */
 export default async function MaterialsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ gorunum?: string; aralik?: string; baslangic?: string; bitis?: string; tur?: string }>;
+  searchParams: Promise<{ gorunum?: string; aralik?: string; baslangic?: string; bitis?: string }>;
 }) {
   const { siteId: rawId } = await params;
   const sp = await searchParams;
@@ -35,32 +48,33 @@ export default async function MaterialsPage({
 
   const today = todayInIstanbul();
   const range = resolveRange(sp.aralik, today, sp.baslangic, sp.bitis);
-  const view: BoardView = sp.gorunum === "hareket" ? "hareket" : sp.gorunum === "cikis" ? "cikis" : "stok";
-  const type = view === "cikis" ? "out" : view === "hareket" ? (sp.tur === "giris" ? "in" : sp.tur === "cikis" ? "out" : undefined) : undefined;
+  const current = VIEWS.find((v) => v.key === sp.gorunum) ?? VIEWS[0];
   const base = `/sites/${siteId}/malzeme`;
 
-  // Tüm veri kimlik doğrulamayla birlikte (paralel) istenir.
-  const [, role, summary, list] = await Promise.all([
+  // Tüm veri kimlik doğrulamayla birlikte (paralel) istenir. Üst kartlar için ortak kırılımı her zaman gelir.
+  const [, role, perPartner, extra, list, suggestions] = await Promise.all([
     requireUser(),
     getSiteRole(siteId),
-    getMaterialSummary(siteId, range.from, range.to),
-    view === "stok" ? Promise.resolve({ rows: [], hasMore: false }) : listMovements(siteId, { from: range.from, to: range.to, type }),
+    getCostBreakdown(siteId, range.from, range.to, "partner"),
+    current.by && current.by !== "partner" ? getCostBreakdown(siteId, range.from, range.to, current.by) : Promise.resolve(null),
+    current.key === "giris" ? listMaterialEntries(siteId, range.from, range.to) : Promise.resolve({ rows: [], hasMore: false }),
+    current.key === "giris" ? getSuggestions(siteId) : Promise.resolve({ names: [], variants: [], units: [], suppliers: [], usages: [] }),
   ]);
   const canWrite = canWriteRole(role);
-  const { totals } = summary;
+  const totalCost = perPartner.reduce((s, r) => s + r.total, 0);
+  const totalCount = perPartner.reduce((s, r) => s + r.count, 0);
+  const rows: BreakdownRow[] | null = current.by === "partner" ? perPartner : extra;
 
   const rangeParams = {
     aralik: range.key === "ay" ? undefined : range.key,
     baslangic: range.key === "ozel" ? range.from : undefined,
     bitis: range.key === "ozel" ? range.to : undefined,
   };
-  const exportHref = (format: "xlsx" | "pdf") => buildHref(`${base}/export`, { gorunum: view === "cikis" ? "cikis" : "stok", ...rangeParams, format });
-  const showExport = view !== "hareket" && summary.rows.length > 0;
+  const exportHref = (format: "xlsx" | "pdf") => buildHref(`${base}/export`, { gorunum: current.key === "giris" ? undefined : current.key, ...rangeParams, format });
 
   const cards = [
-    { label: "Alınan (dönem)", value: totals.inAmount, icon: ArrowDownToLine, tone: "text-emerald-700 dark:text-emerald-400" },
-    { label: "Çıkan (dönem)", value: totals.outAmount, icon: ArrowUpFromLine, tone: "text-orange-700 dark:text-orange-400" },
-    { label: "Eldeki stok değeri", value: totals.stockValue, icon: Warehouse, tone: "text-foreground" },
+    { label: "Toplam malzeme maliyeti", value: formatCurrency(totalCost), icon: Wallet, tone: "text-foreground" },
+    { label: "Giriş sayısı", value: String(totalCount), icon: ListChecks, tone: "text-foreground" },
   ];
 
   return (
@@ -70,7 +84,7 @@ export default async function MaterialsPage({
           <Package className="size-5 text-muted-foreground" aria-hidden />
           Malzeme
         </h1>
-        {showExport && (
+        {totalCount > 0 && (
           <div className="flex gap-2">
             <a href={exportHref("xlsx")} download className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted" aria-label="Excel olarak indir">
               <FileSpreadsheet className="size-4" aria-hidden />
@@ -84,32 +98,30 @@ export default async function MaterialsPage({
         )}
       </div>
 
-      <RangeFilter base={base} range={range} keep={{ gorunum: sp.gorunum, tur: sp.tur }} />
+      <RangeFilter base={base} range={range} keep={{ gorunum: sp.gorunum }} />
 
-      <section aria-label="Malzeme toplamları" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {cards.map(({ label, value, icon: Icon, tone }, i) => (
-          <div key={label} className={cn("min-w-0 rounded-xl border bg-card p-3 sm:p-4", i === 2 && "col-span-2 sm:col-span-1")}>
+      <section aria-label="Malzeme toplamları" className="grid grid-cols-2 gap-3">
+        {cards.map(({ label, value, icon: Icon, tone }) => (
+          <div key={label} className="min-w-0 rounded-xl border bg-card p-3 sm:p-4">
             <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
               <Icon className="size-4 shrink-0" aria-hidden />
               {label}
             </div>
-            <p className={cn("text-lg font-semibold tabular-nums sm:text-xl", tone)}>{formatCurrency(value)}</p>
+            <p className={cn("text-lg font-semibold tabular-nums sm:text-xl", tone)}>{value}</p>
           </div>
         ))}
       </section>
-      <p className="-mt-2 text-xs text-muted-foreground">
-        Genel kasadan bağımsızdır. Çıkış tutarı = çıkış miktarı × ortalama alış fiyatı; stok değeri = eldeki miktar × ortalama alış fiyatı.
-      </p>
+      <p className="-mt-2 text-xs text-muted-foreground">Bu şantiyenin toplamıdır; genel kasadan bağımsızdır. Maliyet = miktar × birim fiyat.</p>
 
       <nav aria-label="Malzeme sekmeleri" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <div className="inline-flex rounded-lg bg-muted p-1">
           {VIEWS.map((v) => (
             <Link
               key={v.key}
-              href={buildHref(base, { ...rangeParams, gorunum: v.key === "stok" ? undefined : v.key })}
+              href={buildHref(base, { ...rangeParams, gorunum: v.key === "giris" ? undefined : v.key })}
               scroll={false}
-              aria-current={view === v.key ? "page" : undefined}
-              className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-3.5 text-sm font-medium", view === v.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+              aria-current={current.key === v.key ? "page" : undefined}
+              className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-3.5 text-sm font-medium", current.key === v.key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
             >
               {v.label}
             </Link>
@@ -117,23 +129,36 @@ export default async function MaterialsPage({
         </div>
       </nav>
 
-      {view === "hareket" && (
-        <nav aria-label="Türe göre filtre" className="inline-flex rounded-lg bg-muted p-1">
-          {([undefined, "giris", "cikis"] as const).map((t) => (
-            <Link
-              key={t ?? "hepsi"}
-              href={buildHref(base, { ...rangeParams, gorunum: "hareket", tur: t })}
-              scroll={false}
-              aria-current={(sp.tur ?? undefined) === t || (!sp.tur && !t) ? "true" : undefined}
-              className={cn("inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium", (sp.tur ?? undefined) === t || (!sp.tur && !t) ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
-            >
-              {t === "giris" ? "Giriş" : t === "cikis" ? "Çıkış" : "Tümü"}
-            </Link>
-          ))}
-        </nav>
+      {current.key === "giris" ? (
+        <MaterialEntries siteId={siteId} canWrite={canWrite} today={today} entries={list.rows} hasMore={list.hasMore || list.rows.length > ENTRY_LIST_LIMIT} suggestions={suggestions} />
+      ) : (
+        <section className="space-y-2" aria-label={current.label}>
+          <p className="text-xs text-muted-foreground">{HINT[current.by!]}</p>
+          {!rows || rows.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">{EMPTY_TEXT[current.by!]}</p>
+          ) : (
+            <ul className="divide-y rounded-xl border bg-card">
+              {rows.map((r) => {
+                const pct = totalCost > 0 ? Math.round((r.total / totalCost) * 100) : 0;
+                return (
+                  <li key={r.key || "belirtilmemis"} className="px-4 py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-sm font-medium">{r.label}</span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(r.total)}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(2, pct)}%` }} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {r.count} giriş{r.quantity !== null && ` · ${formatNumber(r.quantity)} ${r.unit ?? ""}`} · %{pct}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
-
-      <MaterialsBoard view={view} siteId={siteId} canWrite={canWrite} today={today} materials={summary.rows} movements={list.rows} hasMore={list.hasMore || list.rows.length > MOVEMENT_LIST_LIMIT} />
     </div>
   );
 }
