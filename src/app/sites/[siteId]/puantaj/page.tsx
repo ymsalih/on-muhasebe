@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarSearch, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { DailyAttendance, type DailyPerson, type ExcludedPerson, type PresentMeta } from "@/components/attendance/daily-attendance";
 import { MonthlyMatrix } from "@/components/attendance/monthly-matrix";
 import { requireUser } from "@/lib/auth/session";
 import { getMonthData, listAttendancePeople, listPresent } from "@/lib/attendance/queries";
-import { workAvailability, todayInIstanbul } from "@/lib/personnel/status";
+import { addDays, workAvailability, todayInIstanbul } from "@/lib/personnel/status";
+import { formatDate } from "@/lib/format";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,8 @@ export default async function AttendancePage({
 
   const today = todayInIstanbul();
   const monthly = sp.gorunum === "aylik";
+  const attendees = sp.gorunum === "gelenler";
+  const view = monthly ? "aylik" : attendees ? "gelenler" : "gunluk";
   const base = `/sites/${siteId}/puantaj`;
 
   const tabs = (
@@ -42,6 +45,7 @@ export default async function AttendancePage({
       {(
         [
           ["gunluk", "Günlük Gelenler", base],
+          ["gelenler", "Tarihe Göre Liste", `${base}?gorunum=gelenler`],
           ["aylik", "Aylık Özet", `${base}?gorunum=aylik`],
         ] as const
       ).map(([key, label, href]) => (
@@ -49,10 +53,10 @@ export default async function AttendancePage({
           key={key}
           href={href}
           role="tab"
-          aria-selected={(key === "aylik") === monthly}
+          aria-selected={key === view}
           className={cn(
             "inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium",
-            (key === "aylik") === monthly ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+            key === view ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {label}
@@ -111,6 +115,99 @@ export default async function AttendancePage({
           )}
         </div>
         <MonthlyMatrix siteId={siteId} ym={ym} today={today} people={people} data={data} canWrite={canWriteRole(role)} />
+      </div>
+    );
+  }
+
+  // ---------------- Tarihe Göre Liste: seçilen günde kimler geldi (salt okunur analiz listesi) ----------------
+  if (attendees) {
+    const rows = presentRows!;
+    const byId = new Map(people.map((p) => [p.id, p]));
+    const came = rows
+      .map((r) => ({ ...r, person: byId.get(r.personnelId) }))
+      .filter((r) => r.person)
+      .sort((a, b) => a.person!.full_name.localeCompare(b.person!.full_name, "tr"));
+    const dayHref = (d: string) => `${base}?gorunum=gelenler&tarih=${d}`;
+    const prevDay = addDays(date, -1);
+    const nextDay = addDays(date, 1);
+    const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+    const weekday = new Date(`${date}T12:00:00Z`).toLocaleDateString("tr-TR", { weekday: "long", timeZone: "UTC" });
+
+    return (
+      <div className="max-w-3xl space-y-4">
+        <h1 className="text-xl font-semibold">Puantaj</h1>
+        {tabs}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={dayHref(prevDay)} aria-label="Önceki gün" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
+            <ChevronLeft className="size-5" aria-hidden />
+          </Link>
+          <form method="get" action={base} className="flex items-center gap-2">
+            <input type="hidden" name="gorunum" value="gelenler" />
+            <input
+              type="date"
+              name="tarih"
+              defaultValue={date}
+              max={today}
+              required
+              aria-label="Tarih seç"
+              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm"
+            />
+            <button type="submit" className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">
+              <CalendarSearch className="size-4" aria-hidden />
+              Listele
+            </button>
+          </form>
+          {nextDay <= today ? (
+            <Link href={dayHref(nextDay)} aria-label="Sonraki gün" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
+              <ChevronRight className="size-5" aria-hidden />
+            </Link>
+          ) : (
+            <span aria-hidden className="inline-flex size-11 items-center justify-center rounded-lg border opacity-40">
+              <ChevronRight className="size-5" />
+            </span>
+          )}
+          {date !== today && (
+            <Link href={`${base}?gorunum=gelenler`} className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary">
+              Bugün
+            </Link>
+          )}
+        </div>
+
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">
+            {formatDate(date)} <span className="font-normal capitalize text-muted-foreground">{weekday}</span>
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{came.length}</span> / {people.length} kişi geldi
+          </p>
+        </div>
+
+        {came.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Bu tarihte puantaj kaydı yok.</p>
+        ) : (
+          <ul className="divide-y rounded-xl border bg-card" aria-label="O gün gelenler">
+            {came.map((r, i) => (
+              <li key={r.personnelId}>
+                <Link href={`/sites/${siteId}/personel/${r.personnelId}`} className="flex min-h-14 items-start gap-3 px-4 py-2.5 hover:bg-muted/50">
+                  <span className="mt-0.5 w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{r.person!.full_name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[r.person!.duty ?? r.person!.job, r.markedBy && `${r.markedBy} işaretledi · ${fmtTime(r.markedAt)}`].filter(Boolean).join(" · ")}
+                    </span>
+                    {r.note && (
+                      <span className="mt-0.5 flex items-start gap-1 text-xs text-muted-foreground">
+                        <MessageSquare className="mt-0.5 size-3 shrink-0" aria-hidden />
+                        <span className="break-words">{r.note}</span>
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     );
   }
