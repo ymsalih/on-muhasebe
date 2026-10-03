@@ -10,7 +10,7 @@ export const debugFetch: typeof fetch | undefined =
         const res = await fetch(input, init);
         const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         const { pathname, search } = new URL(raw);
-        console.log(`[supabase] ${Math.round(performance.now() - started)}ms ${init?.method ?? "GET"} ${pathname}${search.slice(0, 60)}`);
+        console.log(`[supabase] ${Math.round(performance.now() - started)}ms @${Date.now()} ${init?.method ?? "GET"} ${pathname}${search.slice(0, 60)}`);
         return res;
       }
     : undefined;
