@@ -16,7 +16,21 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </span>
           <h1 className="text-xl font-semibold text-white drop-shadow-md">Şantiye Ön Muhasebe</h1>
         </div>
-        <div className="rounded-xl border border-white/20 bg-card/95 p-5 shadow-xl backdrop-blur-sm sm:p-6">{children}</div>
+        {/* Şeffaf (buzlu cam) kart: arkaplan görünür kalır; yazılar, alanlar ve düğme koyu zeminde okunaklı olacak şekilde yalnızca bu kartın içinde yeniden renklendirilir. */}
+        <div
+          className={[
+            "rounded-xl border border-white/30 bg-black/30 p-5 text-white shadow-2xl backdrop-blur-md sm:p-6",
+            "[&_.text-muted-foreground]:text-white/80!",
+            "[&_label]:text-white [&_label]:font-medium",
+            "[&_input]:border-white/50! [&_input]:bg-black/25! [&_input]:text-white! [&_input]:placeholder:text-white/60",
+            "[&_input]:focus-visible:border-amber-300! [&_input]:focus-visible:ring-amber-300/50!",
+            "[&_button[type=submit]]:bg-amber-400! [&_button[type=submit]]:text-neutral-950! [&_button[type=submit]]:font-semibold [&_button[type=submit]]:shadow-md [&_button[type=submit]]:hover:bg-amber-300!",
+            "[&_a]:text-white/90! [&_a]:underline [&_a]:underline-offset-4",
+            "[&_[role=alert]]:bg-red-950/80! [&_[role=alert]]:text-red-100! [&_[role=alert]]:rounded-lg [&_[role=alert]]:px-2.5 [&_[role=alert]]:py-1.5",
+          ].join(" ")}
+        >
+          {children}
+        </div>
       </div>
     </main>
   );
