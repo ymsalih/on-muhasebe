@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarX2 } from "lucide-react";
+import { CalendarX2, Undo2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/auth/field";
 import { MatrixScroll } from "@/components/attendance/matrix-scroll";
-import { setMachineAttendance } from "@/lib/machines/actions";
+import { saveMachineDay, setMachineAttendance } from "@/lib/machines/actions";
+import { unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
 import { MACHINE_TYPE_LABELS, machineWorkable } from "@/lib/machines/schemas";
 import type { DayEntry, MachineRow } from "@/lib/machines/queries";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -24,6 +26,7 @@ export function MachineMatrix({
   today,
   machines,
   data,
+  paid,
   canWrite,
   dayBase,
   ownerId,
@@ -33,6 +36,8 @@ export function MachineMatrix({
   today: string;
   machines: MachineRow[];
   data: Record<number, Record<string, DayEntry>>;
+  /** Bu ay makine başına yapılmış kira ödemeleri (işaret kaldırma onayı için) */
+  paid: Record<number, PaidInfo>;
   canWrite: boolean;
   /** Günlük ekranın adresi (başlıktaki gün numarası bağlantısı için); sunucudan istemciye fonksiyon geçirilemediği için düz değerler */
   dayBase: string;
@@ -44,6 +49,9 @@ export function MachineMatrix({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(0);
+  // Kaldırılan işaret 10 sn içinde saat ve notuyla birlikte geri getirilebilir
+  const [undo, setUndo] = useState<{ m: MachineRow; iso: string; entry: DayEntry } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [year, month] = ym.split("-").map(Number);
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -67,8 +75,13 @@ export function MachineMatrix({
     const key = `${m.id}|${iso}`;
     if (busy.has(key)) return;
     setError(null);
-    inFlight.current += 1;
     const prev = days[m.id]?.[iso];
+    // Yanlışlıkla dokunmaya karşı: saat/not ya da kira ödemesi varsa işareti kaldırmadan önce sor.
+    if (!mark && prev) {
+      const text = unmarkConfirmText(m.name, iso, prev, paid[m.id]);
+      if (text && !window.confirm(text)) return;
+    }
+    inFlight.current += 1;
     const set = (v: DayEntry | undefined) =>
       setDays((p) => {
         const cur = { ...(p[m.id] ?? {}) };
@@ -88,7 +101,29 @@ export function MachineMatrix({
     if (!res || !res.ok) {
       set(prev); // geri al
       setError(res && !res.ok ? res.error : "Değişiklik kaydedilemedi, bağlantınızı kontrol edip tekrar deneyin.");
+      return;
     }
+    if (!mark && prev) {
+      setUndo({ m, iso, entry: prev });
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      undoTimer.current = setTimeout(() => setUndo(null), 10_000);
+    }
+  }
+
+  /** Kaldırılan işareti saat ve notuyla birlikte geri getirir. */
+  async function restore() {
+    if (!undo) return;
+    const { m, iso, entry } = undo;
+    setError(null);
+    const res = await setMachineAttendance({ siteId, date: iso, add: [m.id], remove: [] }).catch(() => null);
+    let ok = !!res && res.ok;
+    if (ok && (entry.hours != null || entry.note)) {
+      const r2 = await saveMachineDay(siteId, m.id, iso, { hours: entry.hours == null ? "" : String(entry.hours), note: entry.note ?? "" }).catch(() => null);
+      ok = !!r2 && r2.ok;
+    }
+    if (!ok) return setError("Geri alınamadı, bağlantınızı kontrol edip tekrar deneyin.");
+    setDays((p) => ({ ...p, [m.id]: { ...(p[m.id] ?? {}), [iso]: entry } }));
+    setUndo(null);
   }
 
   if (rows.length === 0) {
@@ -108,6 +143,19 @@ export function MachineMatrix({
   return (
     <div className="space-y-3">
       <FormError message={error} />
+      <div aria-live="polite">
+        {undo && (
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">{undo.m.name}</span> · {formatDate(undo.iso)} işareti kaldırıldı
+            </span>
+            <Button type="button" variant="ghost" className="h-11 shrink-0" onClick={restore}>
+              <Undo2 aria-hidden />
+              Geri al
+            </Button>
+          </div>
+        )}
+      </div>
       <MatrixScroll>
         <table className="min-w-max border-collapse text-sm">
           <thead>

@@ -68,12 +68,14 @@ export default async function MachinesPage({
 
   // Ortak için tek tur: veri, kimlik doğrulamayla birlikte (paralel) istenir. Admin yalnızca seçtiği ortağı görür.
   const requested = sp.ortak && UUID.test(sp.ortak) ? sp.ortak : uid;
+  // Günlük ekranda gösterilen günün ayı, diğerlerinde seçili ay (işaret kaldırma onayında o ayın kira ödemeleri sayılır)
+  const payMonth = view === "gunluk" ? date.slice(0, 7) : ym;
   const fetchFor = (ownerId: string) =>
     Promise.all([
       listMachines(siteId, ownerId),
       view === "gunluk" || view === "gelenler" ? listDayAttendance(siteId, ownerId, date) : Promise.resolve(null),
       view === "aylik" || view === "kira" ? getMonthMachineData(siteId, ownerId, firstDay, lastDay) : Promise.resolve(null),
-      view === "kira" ? listMonthRentalPayments(siteId, ownerId, ym) : Promise.resolve(null),
+      view === "kira" || view === "gunluk" || view === "aylik" ? listMonthRentalPayments(siteId, ownerId, payMonth) : Promise.resolve(null),
     ]);
   const [profile, role, owners, firstFetch, allocations, categories] = await Promise.all([
     requireUser(),
@@ -89,6 +91,11 @@ export default async function MachinesPage({
   const [machines, dayEntries, monthData, rentalPayments] = ownerId === requested ? firstFetch : await fetchFor(ownerId);
   const canWrite = canWriteRole(role);
   const ownerName = owners.find((o) => o.id === ownerId)?.name;
+  const paidByMachine: Record<number, { count: number; amount: number }> = {};
+  for (const p of rentalPayments ?? []) {
+    const cur = paidByMachine[p.machineId] ?? { count: 0, amount: 0 };
+    paidByMachine[p.machineId] = { count: cur.count + 1, amount: cur.amount + p.amount };
+  }
 
   // Bağlantılar: admin'de seçili ortak korunur
   const keepOwner = isAdmin ? { ortak: ownerId } : {};
@@ -229,7 +236,7 @@ export default async function MachinesPage({
     body = (
       <>
         {dateNav()}
-        <MachineDaily key={`${ownerId}|${date}`} siteId={siteId} date={date} machines={list} excluded={excluded} initial={entries} canWrite={canWrite} />
+        <MachineDaily key={`${ownerId}|${date}`} siteId={siteId} date={date} machines={list} excluded={excluded} initial={entries} paid={paidByMachine} canWrite={canWrite} />
       </>
     );
   } else if (view === "gelenler") {
@@ -281,6 +288,7 @@ export default async function MachinesPage({
           today={today}
           machines={machines}
           data={monthData ?? {}}
+          paid={paidByMachine}
           canWrite={canWrite}
           dayBase={base}
           ownerId={isAdmin ? ownerId : undefined}

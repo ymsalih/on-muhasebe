@@ -218,7 +218,15 @@ export function MachineRental({
                 title={r.name}
                 lines={[
                   `${formatNumber(r.worked)} ${unitNoun(r.unit)} × ${formatCurrency(r.rate)} = ${formatCurrency(r.due)}${r.supplier ? ` · ${r.supplier}` : ""}`,
-                  r.unit === "hour" && r.daysWithoutHours > 0 ? `${r.daysWithoutHours} günde saat girilmemiş` : `Ödenen ${formatCurrency(r.paid)}`,
+                  paidQty(r.id) > r.worked ? (
+                    <span key="warn" className="font-medium text-amber-700 dark:text-amber-400">
+                      Ödenen {formatNumber(paidQty(r.id))} {unitNoun(r.unit)}, puantajda {formatNumber(r.worked)} {unitNoun(r.unit)} — puantaj değişmiş olabilir
+                    </span>
+                  ) : r.unit === "hour" && r.daysWithoutHours > 0 ? (
+                    `${r.daysWithoutHours} günde saat girilmemiş`
+                  ) : (
+                    `Ödenen ${formatCurrency(r.paid)}`
+                  ),
                 ]}
                 trailing={
                   <span className="block text-right text-xs text-muted-foreground">

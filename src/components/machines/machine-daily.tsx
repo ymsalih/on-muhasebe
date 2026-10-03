@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Truck } from "lucide-react";
+import { Check, Loader2, Truck, Undo2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError } from "@/components/auth/field";
 import { machineSubtitle } from "@/lib/machines/labels";
 import { saveMachineDay, setMachineAttendance } from "@/lib/machines/actions";
+import { unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
 import { MACHINE_TYPE_LABELS } from "@/lib/machines/schemas";
 import type { DayEntry, MachineRow } from "@/lib/machines/queries";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,7 @@ export function MachineDaily({
   machines,
   excluded,
   initial,
+  paid,
   canWrite,
 }: {
   siteId: number;
@@ -33,6 +36,8 @@ export function MachineDaily({
   machines: DailyMachine[];
   excluded: ExcludedMachine[];
   initial: Record<number, DayEntry>;
+  /** Bu ay makine başına yapılmış kira ödemeleri (işaret kaldırma onayı için) */
+  paid: Record<number, PaidInfo>;
   canWrite: boolean;
 }) {
   const router = useRouter();
@@ -43,6 +48,9 @@ export function MachineDaily({
   const [saved, setSaved] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Kaldırılan işaret 10 sn içinde saat ve notuyla birlikte geri getirilebilir
+  const [undo, setUndo] = useState<{ id: number; name: string; hours: string; note: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const presentCount = machines.filter((m) => entries[m.id]).length;
 
@@ -56,6 +64,13 @@ export function MachineDaily({
     if (busy.has(m.id)) return;
     setError(null);
     const on = !!entries[m.id];
+    // Yanlışlıkla dokunmaya karşı: saat/not ya da kira ödemesi varsa işareti kaldırmadan önce sor.
+    const prevHours = (hours[m.id] ?? "").trim();
+    const prevNote = (notes[m.id] ?? "").trim();
+    if (on) {
+      const text = unmarkConfirmText(m.name, date, { hours: prevHours === "" ? null : Number(prevHours.replace(",", ".")), note: prevNote || null }, paid[m.id]);
+      if (text && !window.confirm(text)) return;
+    }
     setEntries((p) => ({ ...p, [m.id]: on ? undefined : { hours: null, note: null } }));
     setBusy((b) => new Set(b).add(m.id));
     const res = await setMachineAttendance({ siteId, date, add: on ? [] : [m.id], remove: on ? [m.id] : [] }).catch(() => null);
@@ -72,7 +87,35 @@ export function MachineDaily({
     if (on) {
       setHours((h) => ({ ...h, [m.id]: "" }));
       setNotes((n) => ({ ...n, [m.id]: "" }));
+      setUndo({ id: m.id, name: m.name, hours: prevHours, note: prevNote });
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      undoTimer.current = setTimeout(() => setUndo(null), 10_000);
     }
+    router.refresh();
+  }
+
+  /** Kaldırılan işareti saat ve notuyla birlikte geri getirir. */
+  async function restore() {
+    if (!undo) return;
+    const u = undo;
+    setError(null);
+    setBusy((b) => new Set(b).add(u.id));
+    const res = await setMachineAttendance({ siteId, date, add: [u.id], remove: [] }).catch(() => null);
+    let ok = !!res && res.ok;
+    if (ok && (u.hours !== "" || u.note !== "")) {
+      const r2 = await saveMachineDay(siteId, u.id, date, { hours: u.hours, note: u.note }).catch(() => null);
+      ok = !!r2 && r2.ok;
+    }
+    setBusy((b) => {
+      const n = new Set(b);
+      n.delete(u.id);
+      return n;
+    });
+    if (!ok) return setError("Geri alınamadı, bağlantınızı kontrol edip tekrar deneyin.");
+    setEntries((p) => ({ ...p, [u.id]: { hours: u.hours === "" ? null : Number(u.hours.replace(",", ".")), note: u.note || null } }));
+    setHours((h) => ({ ...h, [u.id]: u.hours }));
+    setNotes((n) => ({ ...n, [u.id]: u.note }));
+    setUndo(null);
     router.refresh();
   }
 
@@ -103,6 +146,19 @@ export function MachineDaily({
   return (
     <div className="space-y-3">
       <FormError message={error} />
+      <div aria-live="polite">
+        {undo && (
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">{undo.name}</span> işareti kaldırıldı
+            </span>
+            <Button type="button" variant="ghost" className="h-11 shrink-0" onClick={restore}>
+              <Undo2 aria-hidden />
+              Geri al
+            </Button>
+          </div>
+        )}
+      </div>
       <p className="text-sm text-muted-foreground" aria-live="polite">
         <span className="font-semibold text-foreground">{presentCount}</span> / {machines.length} makine geldi
       </p>
