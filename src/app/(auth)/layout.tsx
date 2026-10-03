@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
             <Building2 className="size-6" aria-hidden />
           </span>
-          <h1 className="text-xl font-semibold text-white drop-shadow-md">Şantiye Ön Muhasebe</h1>
+          <h1 className="text-balance text-xl font-semibold uppercase tracking-wide text-white drop-shadow-md">ÖZN YOL YAPIM İNŞAAT &amp; İŞ MAKİNELERİ</h1>
         </div>
         {/* Şeffaf (buzlu cam) kart: arkaplan görünür kalır; yazılar, alanlar ve düğme koyu zeminde okunaklı olacak şekilde yalnızca bu kartın içinde yeniden renklendirilir. */}
         <div
