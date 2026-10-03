@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     "/sites/[siteId]/raporlar/export": ["./node_modules/pdfmake/build/fonts/Roboto/**"],
     "/sites/[siteId]/malzeme/export": ["./node_modules/pdfmake/build/fonts/Roboto/**"],
   },
+  // Giriş sayfası arkaplanı yüksek kalitede (90) sunulur.
+  images: { qualities: [75, 90] },
   experimental: {
     // İstemci yönlendirici önbelleği: 30 sn içinde tekrar ziyaret edilen sayfa (geri/ileri, menü) sunucuya gitmeden
     // anında açılır. Yazma işlemleri (server action + revalidatePath) ve useLiveRefresh önbelleği zaten tazeler;
