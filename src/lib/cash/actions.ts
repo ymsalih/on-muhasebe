@@ -83,13 +83,15 @@ export async function saveCashTransaction(
     return { ok: true, id: data.id };
   }
 
-  // Maaş ödemesi (gün × günlük tutar) kasadan tutarı değiştirilirse gün/ücret dökümü artık geçerli olmaz: veritabanı
-  // tutarlılık kuralı (amount = gün × ücret) bozulmasın diye döküm temizlenir; personele bağlantı ve ay bilgisi kalır.
-  const { data: existing } = await supabase.from("transactions").select("amount, work_days").eq("id", txId).eq("site_id", siteId).maybeSingle();
-  const wageChanged = existing?.work_days != null && Number(existing.amount) !== row.amount;
+  // Maaş (gün × günlük) ya da makine kirası (miktar × birim kira) kasadan tutarı değiştirilirse döküm artık geçerli olmaz: veritabanı
+  // tutarlılık kuralı (tutar = miktar × ücret) bozulmasın diye döküm temizlenir; personel/makine bağlantısı ve ay bilgisi kalır.
+  const { data: existing } = await supabase.from("transactions").select("amount, work_days, machine_qty").eq("id", txId).eq("site_id", siteId).maybeSingle();
+  const changed = Number(existing?.amount) !== row.amount;
+  const wageChanged = existing?.work_days != null && changed;
+  const rentalChanged = existing?.machine_qty != null && changed;
   const { data, error } = await supabase
     .from("transactions")
-    .update(wageChanged ? { ...row, work_days: null, daily_rate: null } : row)
+    .update({ ...row, ...(wageChanged ? { work_days: null, daily_rate: null } : {}), ...(rentalChanged ? { machine_qty: null, machine_rate: null, machine_unit: null } : {}) })
     .eq("id", txId)
     .eq("site_id", siteId)
     .select("id");

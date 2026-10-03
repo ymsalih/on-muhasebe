@@ -21,6 +21,7 @@
     "test:rls:materials": "tsx scripts/test-rls-materials.mts",
     "test:rls:billing": "tsx scripts/test-rls-billing.mts",
     "test:rls:income-source": "tsx scripts/test-rls-income-source.mts",
+    "test:rls:machines": "tsx scripts/test-rls-machines.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },
   "dependencies": {
