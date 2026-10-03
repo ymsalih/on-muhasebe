@@ -7,6 +7,7 @@ import { DataRow } from "@/components/data-row";
 import { TransactionSheet, type SheetTx } from "@/components/cash/transaction-sheet";
 import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import type { CategoryOption } from "@/lib/cash/actions";
+import type { IncomeSource } from "@/lib/cash/sources";
 import type { CashType } from "@/lib/cash/schemas";
 import type { PartyTransaction } from "@/lib/parties/queries";
 import { PAYMENT_METHOD_LABELS, TX_KIND_LABELS, typeToKind } from "@/lib/parties/schemas";
@@ -26,6 +27,7 @@ function toSheetTx(t: PartyTransaction, partyId: number): SheetTx {
     categoryId: t.category_id,
     partyId,
     method: t.payment_method,
+    sourceIncomeId: t.source_income_id,
   };
 }
 
@@ -42,6 +44,7 @@ export function PartyTransactions({
   canWrite,
   today,
   limit,
+  incomeSources,
 }: {
   siteId: number;
   party: { id: number; name: string };
@@ -50,6 +53,7 @@ export function PartyTransactions({
   canWrite: boolean;
   today: string;
   limit: number;
+  incomeSources: IncomeSource[];
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SheetTx | null>(null);
@@ -141,6 +145,7 @@ export function PartyTransactions({
         labels={LABELS}
         today={today}
         defaultType="expense"
+        incomeSources={incomeSources}
       />
     </div>
   );

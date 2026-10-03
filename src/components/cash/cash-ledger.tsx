@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DataRow } from "@/components/data-row";
 import { TransactionSheet, type SheetTx } from "@/components/cash/transaction-sheet";
 import type { CategoryOption } from "@/lib/cash/actions";
+import type { IncomeSource } from "@/lib/cash/sources";
 import type { CashRow } from "@/lib/cash/queries";
 import type { CashType } from "@/lib/cash/schemas";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -25,6 +26,7 @@ export function toSheetTx(r: CashRow): SheetTx {
     categoryId: r.category_id,
     partyId: r.party_id,
     method: r.payment_method,
+    sourceIncomeId: r.source_income_id,
   };
 }
 
@@ -44,6 +46,8 @@ export function CashLedger({
   today,
   autoOpen,
   filtered,
+  incomeSources,
+  incomeInfo,
   children,
 }: {
   siteId: number;
@@ -56,6 +60,9 @@ export function CashLedger({
   today: string;
   autoOpen: boolean;
   filtered: boolean;
+  incomeSources: IncomeSource[];
+  /** Gelir kaydı id → kısa ad, tutar ve ondan harcanan (gider satırında kaynak, gelir satırında harcanan/kalan için) */
+  incomeInfo: Record<number, { label: string; amount: number; spent: number }>;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(autoOpen && canWrite);
@@ -128,6 +135,15 @@ export function CashLedger({
                 lines={[
                   [formatDate(r.transaction_date), r.payment_method && PAYMENT_METHOD_LABELS[r.payment_method], r.parties?.name].filter(Boolean).join(" · "),
                   r.users?.full_name && `${r.users.full_name} girdi`,
+                  !income && r.source_income_id !== null && `Kaynak gelir: ${incomeInfo[r.source_income_id]?.label ?? "gelir kaydı"}`,
+                  income && incomeInfo[r.id] && incomeInfo[r.id].spent > 0 && (
+                    <span key="alloc">
+                      Harcanan {formatCurrency(incomeInfo[r.id].spent)} ·{" "}
+                      <span className={incomeInfo[r.id].amount - incomeInfo[r.id].spent < 0 ? "font-medium text-red-600 dark:text-red-400" : ""}>
+                        Kalan {formatCurrency(Math.round((incomeInfo[r.id].amount - incomeInfo[r.id].spent) * 100) / 100)}
+                      </span>
+                    </span>
+                  ),
                 ]}
                 trailing={
                   <span className={cn("font-semibold tabular-nums", income ? "text-emerald-700 dark:text-emerald-400" : "text-orange-700 dark:text-orange-400")}>
@@ -167,6 +183,7 @@ export function CashLedger({
         parties={parties}
         labels={LABELS}
         today={today}
+        incomeSources={incomeSources}
       />
     </div>
   );

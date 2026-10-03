@@ -72,6 +72,7 @@ export type PartyTransaction = {
   payment_method: "nakit" | "havale" | "cek" | "diger" | null;
   transaction_date: string;
   category_id: number | null;
+  source_income_id: number | null;
   categories: { name: string } | null;
   users: { full_name: string } | null;
 };
@@ -83,7 +84,7 @@ export async function listPartyTransactions(siteId: number, partyId: number): Pr
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, type, description, amount, payment_method, transaction_date, category_id, categories(name), users(full_name)")
+    .select("id, type, description, amount, payment_method, transaction_date, category_id, source_income_id, categories(name), users(full_name)")
     .eq("site_id", siteId)
     .eq("party_id", partyId)
     .order("transaction_date", { ascending: false })

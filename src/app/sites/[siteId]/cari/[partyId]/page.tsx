@@ -5,7 +5,8 @@ import { ArrowLeft, MapPin, Pencil, Phone, StickyNote } from "lucide-react";
 import { BalanceAmount, CategoryBadge, balanceTone } from "@/components/parties/balance";
 import { PartyTransactions } from "@/components/parties/party-transactions";
 import { requireUser } from "@/lib/auth/session";
-import { listCategories } from "@/lib/cash/queries";
+import { getIncomeAllocations, listCategories } from "@/lib/cash/queries";
+import { toIncomeSources } from "@/lib/cash/sources";
 import { formatCurrency } from "@/lib/format";
 import { TRANSACTION_LIST_LIMIT, getParty, getPartyBalance, listPartyTransactions } from "@/lib/parties/queries";
 import { todayInIstanbul } from "@/lib/personnel/status";
@@ -21,13 +22,14 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
   const partyId = Number(rawParty);
   if (!Number.isInteger(siteId) || !Number.isInteger(partyId)) notFound();
 
-  const [, role, party, balance, transactions, categories] = await Promise.all([
+  const [, role, party, balance, transactions, categories, allocations] = await Promise.all([
     requireUser(),
     getSiteRole(siteId),
     getParty(siteId, partyId),
     getPartyBalance(siteId, partyId),
     listPartyTransactions(siteId, partyId),
     listCategories(siteId),
+    getIncomeAllocations(siteId, null, null),
   ]);
   if (!party || !balance) notFound();
   const canWrite = canWriteRole(role);
@@ -127,6 +129,7 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
         canWrite={canWrite}
         today={todayInIstanbul()}
         limit={TRANSACTION_LIST_LIMIT}
+        incomeSources={toIncomeSources(allocations, new Map(categories.map((c) => [c.id, c.name])))}
       />
     </div>
   );

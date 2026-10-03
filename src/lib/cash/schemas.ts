@@ -18,6 +18,8 @@ export const cashTransactionSchema = z.object({
   description: z.string().trim().min(2, "Açıklama en az 2 karakter olmalı.").max(300, "Açıklama en fazla 300 karakter olabilir."),
   categoryId: z.string().regex(/^\d*$/, "Geçersiz kategori."),
   partyId: z.string().regex(/^\d*$/, "Geçersiz cari."),
+  /** Yalnızca giderde: hangi gelir kaydından harcandığı (opsiyonel). */
+  sourceIncomeId: z.string().regex(/^\d*$/, "Geçersiz gelir."),
   paymentMethod: z.union([z.literal(""), z.enum(PAYMENT_METHODS)]),
 });
 export type CashTransactionValues = z.infer<typeof cashTransactionSchema>;

@@ -22,9 +22,12 @@ function mapError(error: { code?: string; message?: string }): string {
     case "42501":
       return NO_WRITE_ERROR;
     case "23503":
-      return /Kategori/.test(error.message ?? "")
-        ? "Seçilen kategori bu işlem türüne uygun değil."
-        : "Bu kayda bağlı hareketler var ya da seçilen kayıt bu şantiyeye ait değil.";
+      if (/Kategori/.test(error.message ?? "")) return "Seçilen kategori bu işlem türüne uygun değil.";
+      if (/Kaynak gelir/.test(error.message ?? "")) return "Seçilen gelir bu şantiyeye ait bir gelir kaydı değil.";
+      if (/bağlı giderler|transactions_source_income_fk/.test(error.message ?? "")) {
+        return "Bu gelire bağlı giderler var; önce o giderlerin kaynağını değiştirin ya da giderleri silin.";
+      }
+      return "Bu kayda bağlı hareketler var ya da seçilen kayıt bu şantiyeye ait değil.";
     case "23505":
       return "Bu adla bir kategori zaten var.";
     case "23514":
@@ -64,6 +67,8 @@ export async function saveCashTransaction(
     payment_method: v.paymentMethod || null,
     category_id: v.categoryId ? Number(v.categoryId) : null,
     party_id: lockedPartyId ?? (v.partyId ? Number(v.partyId) : null),
+    // Kaynak yalnızca giderde anlamlıdır; gelire dönüştürülen kayıtta temizlenir (veritabanı da zorlar).
+    source_income_id: v.type === "expense" && v.sourceIncomeId ? Number(v.sourceIncomeId) : null,
   };
 
   const supabase = await createClient();

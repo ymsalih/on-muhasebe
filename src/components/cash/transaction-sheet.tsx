@@ -11,6 +11,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Field, FormError } from "@/components/auth/field";
 import { createCategory, deleteCashTransaction, saveCashTransaction, type CategoryOption } from "@/lib/cash/actions";
 import { CASH_TYPES, cashTransactionSchema, type CashTransactionValues, type CashType } from "@/lib/cash/schemas";
+import type { IncomeSource } from "@/lib/cash/sources";
+import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/parties/schemas";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,8 @@ export type SheetTx = {
   categoryId: number | null;
   partyId: number | null;
   method: string | null;
+  /** Gider ise: hangi gelir kaydından harcandığı */
+  sourceIncomeId: number | null;
 };
 
 /** Tutarı düzenleme alanı için "1250,5" biçimine çevirir. */
@@ -47,6 +51,7 @@ export function TransactionSheet({
   labels,
   today,
   defaultType = "expense",
+  incomeSources,
 }: {
   siteId: number;
   open: boolean;
@@ -58,6 +63,8 @@ export function TransactionSheet({
   labels: Record<CashType, string>;
   today: string;
   defaultType?: CashType;
+  /** Verilirse giderlerde "Hangi gelirden?" seçimi gösterilir (gelir kayıtları ve kalan tutarları). */
+  incomeSources?: IncomeSource[];
 }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
@@ -91,7 +98,7 @@ export function TransactionSheet({
     formState: { errors, isSubmitting },
   } = useForm<CashTransactionValues>({
     resolver: zodResolver(cashTransactionSchema),
-    defaultValues: { type: defaultType, amount: "", date: today, description: "", categoryId: "", partyId: "", paymentMethod: "" },
+    defaultValues: { type: defaultType, amount: "", date: today, description: "", categoryId: "", partyId: "", sourceIncomeId: "", paymentMethod: "" },
   });
 
   // Pencere her açıldığında formu doğru değerlerle başlat.
@@ -109,15 +116,31 @@ export function TransactionSheet({
             description: editing.description,
             categoryId: editing.categoryId === null ? "" : String(editing.categoryId),
             partyId: editing.partyId === null ? "" : String(editing.partyId),
+            sourceIncomeId: editing.sourceIncomeId === null ? "" : String(editing.sourceIncomeId),
             paymentMethod: (editing.method as CashTransactionValues["paymentMethod"]) ?? "",
           }
-        : { type: defaultType, amount: "", date: today, description: "", categoryId: "", partyId: "", paymentMethod: "" },
+        : { type: defaultType, amount: "", date: today, description: "", categoryId: "", partyId: "", sourceIncomeId: "", paymentMethod: "" },
     );
   }, [open, editing, defaultType, today, reset]);
 
   const type = watch("type");
   const categoryId = watch("categoryId");
   const typeCats = cats.filter((c) => c.type === type);
+  const sourceIncomeId = watch("sourceIncomeId");
+  const amountValue = watch("amount");
+
+  // Gelire çevrilen kayıtta kaynak temizlenir (kaynak yalnızca giderde anlamlıdır).
+  useEffect(() => {
+    if (type === "income" && sourceIncomeId) setValue("sourceIncomeId", "");
+  }, [type, sourceIncomeId, setValue]);
+
+  // Seçili kaynak listede yoksa (çok eski gelir) seçim korunsun diye ek seçenek gösterilir.
+  const sourceOptions = incomeSources ?? [];
+  const missingSource = !!sourceIncomeId && !sourceOptions.some((s) => String(s.id) === sourceIncomeId);
+  const selectedSource = sourceOptions.find((s) => String(s.id) === sourceIncomeId);
+  // Düzenlenen giderin kendi tutarı, aynı kaynakta kalana geri sayılır (yalnızca bilgi; engel değil).
+  const sourceAvailable = selectedSource ? selectedSource.remaining + (editing && String(editing.sourceIncomeId) === sourceIncomeId ? editing.amount : 0) : null;
+  const amountNum = Number(String(amountValue ?? "").replace(",", "."));
 
   useEffect(() => {
     if (pendingCategory && cats.some((c) => String(c.id) === pendingCategory)) {
@@ -245,6 +268,32 @@ export function TransactionSheet({
               </Button>
             )}
           </div>
+
+          {incomeSources && type === "expense" && (
+            <div className="space-y-1.5">
+              <Field id="tx-source" label="Hangi gelirden? (opsiyonel)" error={errors.sourceIncomeId?.message}>
+                <select id="tx-source" className={selectClass} {...register("sourceIncomeId")}>
+                  <option value="">— Belirtilmedi —</option>
+                  {missingSource && <option value={sourceIncomeId}>Seçili gelir (eski kayıt)</option>}
+                  {sourceOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {sourceOptions.length === 0 && <p className="text-xs text-muted-foreground">Henüz gelir kaydı yok; önce bir gelir ekleyin.</p>}
+              {sourceAvailable !== null && (
+                <p
+                  className={cn("rounded-lg px-3 py-2 text-xs", Number.isFinite(amountNum) && amountNum > sourceAvailable ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "bg-muted text-muted-foreground")}
+                  aria-live="polite"
+                >
+                  Bu gelirden kalan: <span className="font-semibold tabular-nums">{formatCurrency(sourceAvailable)}</span>
+                  {Number.isFinite(amountNum) && amountNum > sourceAvailable && " — bu gider kalan tutarı aşıyor (yine de kaydedebilirsiniz)."}
+                </p>
+              )}
+            </div>
+          )}
 
           {!lockedParty && (
             <Field id="tx-party" label="Cari (opsiyonel)" error={errors.partyId?.message}>
