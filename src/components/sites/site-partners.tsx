@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Search, Trash2, UserPlus, X } from "lucide-react";
+import { Archive, ArchiveRestore, Loader2, Search, Trash2, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError } from "@/components/auth/field";
-import { addSiteMember, removeSiteMember, searchUsersForSite, type UserSearchResult } from "@/lib/sites/actions";
+import { addSiteMember, removeSiteMember, searchUsersForSite, setMemberArchived, type UserSearchResult } from "@/lib/sites/actions";
 import { ADDABLE_ROLES, SITE_MEMBER_ROLE_LABELS, type SiteMemberRole } from "@/lib/sites/schemas";
 
 export type MemberRow = {
@@ -15,6 +15,10 @@ export type MemberRow = {
   fullName: string;
   email: string;
   role: SiteMemberRole;
+  /** Üyelik arşivde mi? (salt okunur) */
+  archived: boolean;
+  /** Üyenin bu şantiyede girdiği kayıt sayısı (yalnızca sahip görür); 0 ise çıkarılabilir, değilse arşive alınır */
+  dataCount: number;
 };
 
 const selectClass =
@@ -82,6 +86,20 @@ export function SitePartners({
     });
   }
 
+  function onArchive(member: MemberRow, archived: boolean) {
+    const text = archived
+      ? `${member.fullName} arşive alınsın mı?\n\nKendi verilerini görmeye devam eder ama veri ekleyemez, değiştiremez veya silemez. İstediğiniz zaman geri alabilirsiniz.`
+      : `${member.fullName} arşivden çıkarılsın mı? Yeniden veri girebilir.`;
+    if (!window.confirm(text)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await setMemberArchived(siteId, member.id, archived).catch(() => null);
+      if (!res) return setError("İşlem tamamlanamadı, bağlantınızı kontrol edip tekrar deneyin.");
+      if (!res.ok) return setError(res.error);
+      router.refresh();
+    });
+  }
+
   function onRemove(member: MemberRow) {
     if (!window.confirm(`${member.fullName} bu şantiyeden çıkarılsın mı? Şantiye verilerine erişimi kalkar.`)) return;
     setError(null);
@@ -110,9 +128,23 @@ export function SitePartners({
                 <p className="truncate text-xs text-muted-foreground">
                   {SITE_MEMBER_ROLE_LABELS[m.role]}
                    · {m.email}
+                  {m.archived && <span className="font-medium text-amber-700 dark:text-amber-300"> · arşivde (salt okunur)</span>}
+                  {isOwner && m.role !== "owner" && m.dataCount > 0 && <span> · {m.dataCount} kayıt</span>}
                 </p>
               </div>
-              {isOwner && m.role !== "owner" && (
+              {isOwner && m.role !== "owner" && m.archived && (
+                <Button type="button" variant="ghost" className="h-11 shrink-0 gap-1.5 px-3" disabled={pending} aria-label={`${m.fullName} kişisini arşivden çıkar`} onClick={() => onArchive(m, false)}>
+                  <ArchiveRestore aria-hidden />
+                  Geri al
+                </Button>
+              )}
+              {isOwner && m.role !== "owner" && !m.archived && m.dataCount > 0 && (
+                <Button type="button" variant="ghost" className="h-11 shrink-0 gap-1.5 px-3" disabled={pending} aria-label={`${m.fullName} kişisini arşive al (verisi var, çıkarılamaz)`} onClick={() => onArchive(m, true)}>
+                  <Archive aria-hidden />
+                  Arşive al
+                </Button>
+              )}
+              {isOwner && m.role !== "owner" && !m.archived && m.dataCount === 0 && (
                 <Button
                   type="button"
                   variant="ghost"

@@ -14,6 +14,8 @@ import {
   Menu,
   Package,
   Receipt,
+  Settings,
+  Archive,
   Truck,
   Fuel,
   PanelLeftClose,
@@ -57,6 +59,8 @@ type AppShellProps = {
   site?: SiteRef;
   /** Kullanıcının erişebildiği şantiyeler (şantiye değiştirme listesi). */
   sites: SiteRef[];
+  /** Salt okunur uyarı şeridi (arşivdeki şantiye / arşivdeki üyelik) */
+  notice?: { text: string; href?: string; linkLabel?: string };
   children: React.ReactNode;
 };
 
@@ -74,6 +78,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       // "Daha Fazla" içine toplanan ekranlar
       more: [
         { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
+        { href: `${base}/ayarlar`, label: "Şantiye Ayarları", icon: Settings, enabled: true },
         { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: true },
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: true },
         { href: `${base}/malzeme`, label: "Malzeme", icon: Package, enabled: true },
@@ -216,7 +221,7 @@ function SiteChip({ site, sites }: { site: SiteRef; sites: SiteRef[] }) {
   );
 }
 
-export function AppShell({ user, site, sites, children }: AppShellProps) {
+export function AppShell({ user, site, sites, notice, children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -287,6 +292,18 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
             <span className="text-base font-semibold">{user.role === "admin" ? "Admin Paneli" : "Şantiyelerim"}</span>
           )}
         </header>
+
+        {notice && (
+          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2.5 text-sm text-amber-100 md:px-6">
+            <Archive className="size-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">{notice.text}</span>
+            {notice.href && (
+              <Link href={notice.href} className="inline-flex min-h-11 items-center font-medium underline underline-offset-4">
+                {notice.linkLabel}
+              </Link>
+            )}
+          </div>
+        )}
 
         <main className="flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-8">{children}</main>
       </div>

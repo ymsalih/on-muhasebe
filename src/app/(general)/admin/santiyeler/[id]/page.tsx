@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { SiteManage } from "@/components/sites/site-manage";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { getSiteDataSummary } from "@/lib/sites/manage";
 import { SITE_MEMBER_ROLE_LABELS, type SiteMemberRole } from "@/lib/sites/schemas";
 
 export const metadata: Metadata = { title: "Şantiye Detayı — ÖZN YOL" };
@@ -14,15 +16,21 @@ type SiteDetail = {
   name: string;
   address: string | null;
   start_date: string | null;
-  status: "active" | "closed";
+  status: "active" | "closed" | "archived";
   site_members: {
     id: number;
     role: SiteMemberRole;
+    archived_at: string | null;
     users: { full_name: string; email: string } | null;
   }[];
 };
 
-/** SALT GÖRÜNTÜLEME: admin burada hiçbir şeyi değiştiremez (RLS de buna izin vermez). */
+const STATUS_LABELS = { active: "Aktif", closed: "Kapalı", archived: "Arşivde" } as const;
+
+/**
+ * Admin: şantiyeyi görüntüler, düzenler, arşive alır veya (verisi yoksa) siler. Admin şantiye OLUŞTURMAZ, üye EKLEMEZ ve
+ * operasyonel veri YAZMAZ; üye yönetimi şantiye sahibinindir.
+ */
 export default async function AdminSiteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
@@ -30,11 +38,14 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
   if (!Number.isInteger(siteId)) notFound();
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("sites")
-    .select("id, name, address, start_date, status, site_members(id, role, users(full_name, email))")
-    .eq("id", siteId)
-    .maybeSingle();
+  const [{ data }, summary] = await Promise.all([
+    supabase
+      .from("sites")
+      .select("id, name, address, start_date, status, site_members(id, role, archived_at, users(full_name, email))")
+      .eq("id", siteId)
+      .maybeSingle(),
+    getSiteDataSummary(siteId),
+  ]);
 
   const site = data as SiteDetail | null;
   if (!site) notFound();
@@ -49,7 +60,7 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">{site.name}</h1>
         <p className="text-sm text-muted-foreground">
-          {site.status === "active" ? "Aktif" : "Kapalı"} · {site.address ?? "Adres girilmedi"}
+          {STATUS_LABELS[site.status]} · {site.address ?? "Adres girilmedi"}
           {site.start_date && ` · Başlangıç: ${formatDate(site.start_date)}`}
         </p>
       </div>
@@ -65,13 +76,23 @@ export default async function AdminSiteDetailPage({ params }: { params: Promise<
                 <p className="truncate text-sm font-medium">{m.users?.full_name ?? "—"}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {SITE_MEMBER_ROLE_LABELS[m.role]}
+                  {m.archived_at && " · arşivde"}
                   {m.users && ` · ${m.users.email}`}
                 </p>
               </li>
             ))}
           </ul>
         )}
+        <p className="text-xs text-muted-foreground">Üyeleri şantiyenin sahibi yönetir; admin üye ekleyemez.</p>
       </section>
+
+      <SiteManage
+        siteId={site.id}
+        initial={{ name: site.name, address: site.address ?? "", startDate: site.start_date ?? "" }}
+        status={site.status}
+        summary={summary}
+        afterDeleteHref="/admin/santiyeler"
+      />
     </div>
   );
 }

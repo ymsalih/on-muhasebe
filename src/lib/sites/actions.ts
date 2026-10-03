@@ -85,21 +85,31 @@ export async function addSiteMember(input: AddMemberValues): Promise<Result> {
   return { ok: true };
 }
 
-/** Sahip, sahip olmayan bir üyeyi şantiyeden çıkarır (RLS: owner satırı silinemez). */
+/** Sahip, sahip olmayan bir üyeyi şantiyeden çıkarır. Üyenin bu şantiyede verisi varsa çıkarılamaz, arşive alınır. */
 export async function removeSiteMember(siteId: number, memberId: number): Promise<Result> {
   await requireAuthId();
   if (!Number.isInteger(siteId) || !Number.isInteger(memberId)) return { ok: false, error: "Geçersiz istek." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("site_members")
-    .delete()
-    .eq("id", memberId)
-    .eq("site_id", siteId)
-    .select("id");
+  const { error } = await supabase.rpc("remove_site_member", { p_site_id: siteId, p_member_id: memberId });
+  if (error) {
+    if (error.code === "55000") return { ok: false, error: "Bu ortağın şantiyede verisi var; çıkarılamaz. Arşive alabilirsiniz." };
+    if (error.code === "P0002") return { ok: false, error: "Üye bulunamadı (başka biri çıkarmış olabilir)." };
+    return { ok: false, error: error.code === "42501" ? NOT_OWNER_ERROR : GENERIC_ERROR };
+  }
 
-  if (error) return { ok: false, error: GENERIC_ERROR };
-  if (!data || data.length === 0) return { ok: false, error: NOT_OWNER_ERROR };
+  revalidatePath(`/sites/${siteId}/ortaklar`);
+  return { ok: true };
+}
+
+/** Sahip, bir üyeyi arşive alır / geri alır. Arşivdeki üye kendi verisini görür ama yazamaz. */
+export async function setMemberArchived(siteId: number, memberId: number, archived: boolean): Promise<Result> {
+  await requireAuthId();
+  if (!Number.isInteger(siteId) || !Number.isInteger(memberId)) return { ok: false, error: "Geçersiz istek." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_member_archived", { p_site_id: siteId, p_member_id: memberId, p_archived: archived });
+  if (error) return { ok: false, error: error.code === "42501" ? NOT_OWNER_ERROR : GENERIC_ERROR };
 
   revalidatePath(`/sites/${siteId}/ortaklar`);
   return { ok: true };

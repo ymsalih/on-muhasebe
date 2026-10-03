@@ -9,6 +9,8 @@ export type Profile = {
   email: string;
   role: "admin" | "partner";
   must_change_password: boolean;
+  /** Dolu ise hesap arşivde (pasif): giriş yapamaz, hiçbir veri göremez */
+  archived_at: string | null;
 };
 
 /**
@@ -32,7 +34,7 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("users")
-    .select("id, full_name, email, role, must_change_password")
+    .select("id, full_name, email, role, must_change_password, archived_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -53,6 +55,7 @@ export async function requireAuthId(): Promise<string> {
 export async function requireUser(): Promise<Profile> {
   const profile = await getProfile();
   if (!profile) redirect("/login");
+  if (profile.archived_at) redirect("/hesap-arsivde");
   if (profile.must_change_password) redirect("/change-password");
   return profile;
 }

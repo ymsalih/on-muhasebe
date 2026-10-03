@@ -30,6 +30,10 @@ export function LoginForm() {
     });
 
     if (error) {
+      if (error.code === "user_banned") {
+        setFormError("Hesabınız arşive alınmış. Giriş için yöneticinizle iletişime geçin.");
+        return;
+      }
       setFormError(
         error.status && error.status >= 500
           ? "Giriş yapılamadı, bağlantınızı kontrol edip tekrar deneyin."

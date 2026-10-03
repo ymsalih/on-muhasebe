@@ -12,6 +12,7 @@ type PartnerRow = {
   email: string;
   phone: string | null;
   must_change_password: boolean;
+  archived_at: string | null;
   site_members: { sites: { id: number; name: string } | null }[];
 };
 
@@ -21,10 +22,12 @@ export default async function PartnersPage() {
 
   const { data } = await supabase
     .from("users")
-    .select("id, full_name, email, phone, must_change_password, site_members(sites(id, name))")
+    .select("id, full_name, email, phone, must_change_password, archived_at, site_members(sites(id, name))")
     .eq("role", "partner")
     .order("full_name");
-  const partners = (data as PartnerRow[] | null) ?? [];
+  const all = (data as PartnerRow[] | null) ?? [];
+  const partners = [...all.filter((p) => !p.archived_at), ...all.filter((p) => p.archived_at)];
+  const firstArchived = partners.findIndex((p) => p.archived_at);
 
   return (
     <div className="space-y-4">
@@ -54,16 +57,24 @@ export default async function PartnersPage() {
         </div>
       ) : (
         <ul className="grid gap-3 md:max-w-3xl">
-          {partners.map((p) => {
+          {partners.map((p, i) => {
             const siteNames = p.site_members.map((m) => m.sites?.name).filter(Boolean) as string[];
             return (
-              <li key={p.id} className="space-y-2 rounded-xl border bg-card p-4">
+              <li key={p.id} className="space-y-3">
+                {i === firstArchived && (
+                  <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arşiv · giriş kapalı</p>
+                )}
+                <Link href={`/admin/ortaklar/${p.id}`} className="block space-y-2 rounded-xl border bg-card p-4 hover:bg-muted/50">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{p.full_name}</p>
                     <p className="truncate text-sm text-muted-foreground">{p.email}</p>
                   </div>
-                  {p.must_change_password && (
+                  {p.archived_at ? (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      Arşivde
+                    </span>
+                  ) : p.must_change_password && (
                     <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:bg-orange-950 dark:text-orange-400">
                       İlk giriş bekliyor
                     </span>
@@ -79,6 +90,7 @@ export default async function PartnersPage() {
                   <span className="text-muted-foreground">Şantiyeler: </span>
                   {siteNames.length > 0 ? siteNames.join(", ") : <span className="text-muted-foreground">atanmadı</span>}
                 </p>
+                </Link>
               </li>
             );
           })}

@@ -10,16 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Field, FormError } from "@/components/auth/field";
 import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import { createPartner } from "@/lib/admin/actions";
+import { generatePassword } from "@/lib/admin/password";
 import { createPartnerSchema, type CreatePartnerValues } from "@/lib/admin/schemas";
-
-// Karışması kolay karakterler (0/O, 1/l/I) çıkarıldı: şifre telefonla/WhatsApp'la iletilecek.
-const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-
-function generatePassword(length = 12) {
-  const bytes = new Uint32Array(length);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");
-}
 
 export function PartnerForm() {
   const [formError, setFormError] = useState<string | null>(null);

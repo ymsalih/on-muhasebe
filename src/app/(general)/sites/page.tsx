@@ -13,7 +13,7 @@ type SiteCardData = {
   name: string;
   address: string | null;
   start_date: string | null;
-  status: "active" | "closed";
+  status: "active" | "closed" | "archived";
 };
 
 /**
@@ -38,7 +38,9 @@ export default async function SitesPage() {
     ]),
   );
   const isAdmin = profile.role === "admin";
-  const sites = (data as SiteCardData[] | null) ?? [];
+  const ORDER = { active: 0, closed: 1, archived: 2 } as const;
+  const sites = ((data as SiteCardData[] | null) ?? []).slice().sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.name.localeCompare(b.name, "tr"));
+  const firstArchived = sites.findIndex((s) => s.status === "archived");
 
   if (sites.length === 0) {
     return (
@@ -71,13 +73,16 @@ export default async function SitesPage() {
         {isAdmin ? "Tüm şantiyeler (salt görüntüleme)." : "Çalışmak istediğiniz şantiyeyi seçin."}
       </p>
       <ul className="grid grid-cols-1 gap-3 md:max-w-2xl">
-        {sites.map((site) => (
-          <li key={site.id}>
+        {sites.map((site, i) => (
+          <li key={site.id} className="space-y-3">
+            {i === firstArchived && (
+              <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arşiv · salt okunur</p>
+            )}
             <Link
               href={`/sites/${site.id}`}
               className={cn(
                 "flex min-h-20 items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/50",
-                site.status === "closed" && "opacity-70",
+                (site.status === "closed" || site.status === "archived") && "opacity-80",
               )}
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -91,10 +96,12 @@ export default async function SitesPage() {
                       "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
                       site.status === "active"
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground",
+                        : site.status === "archived"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                          : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {site.status === "active" ? "Aktif" : "Kapalı"}
+                    {site.status === "active" ? "Aktif" : site.status === "archived" ? "Arşivde" : "Kapalı"}
                   </span>
                 </span>
                 {site.address && (
