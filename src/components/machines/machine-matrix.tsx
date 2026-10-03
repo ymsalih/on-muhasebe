@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/auth/field";
 import { MatrixScroll } from "@/components/attendance/matrix-scroll";
 import { saveMachineDay, setMachineAttendance } from "@/lib/machines/actions";
-import { unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
+import { markConfirmText, unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
 import { MACHINE_TYPE_LABELS, machineWorkable } from "@/lib/machines/schemas";
 import type { DayEntry, MachineRow } from "@/lib/machines/queries";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -79,6 +79,10 @@ export function MachineMatrix({
     // Yanlışlıkla dokunmaya karşı: saat/not ya da kira ödemesi varsa işareti kaldırmadan önce sor.
     if (!mark && prev) {
       const text = unmarkConfirmText(m.name, iso, prev, paid[m.id]);
+      if (text && !window.confirm(text)) return;
+    } else if (mark) {
+      // Ay tam ödenmişse yeni gün ödemeyi de artırır: önce sor
+      const text = markConfirmText(m.name, iso, paid[m.id]);
       if (text && !window.confirm(text)) return;
     }
     inFlight.current += 1;

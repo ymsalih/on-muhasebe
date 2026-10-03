@@ -14,6 +14,7 @@ import { incomeShortLabel, toIncomeSources } from "@/lib/cash/sources";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getMachineOwners, getMonthMachineData, listDayAttendance, listMachines, listMonthRentalPayments } from "@/lib/machines/queries";
 import { MACHINE_TYPE_LABELS, machineWorkable } from "@/lib/machines/schemas";
+import type { PaidInfo } from "@/lib/machines/unmark";
 import { addDays, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
@@ -59,8 +60,6 @@ export default async function MachinesPage({
   const currentYm = today.slice(0, 7);
   const ym = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.ay ?? "") && sp.ay! <= currentYm ? sp.ay! : currentYm;
   const [y, m] = ym.split("-").map(Number);
-  const firstDay = `${ym}-01`;
-  const lastDay = `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.tarih ?? "") && sp.tarih! <= today ? sp.tarih! : today;
 
   const uid = await getAuthUserId(); // JWT'den yerel okunur (ağ turu yok)
@@ -70,11 +69,15 @@ export default async function MachinesPage({
   const requested = sp.ortak && UUID.test(sp.ortak) ? sp.ortak : uid;
   // Günlük ekranda gösterilen günün ayı, diğerlerinde seçili ay (işaret kaldırma onayında o ayın kira ödemeleri sayılır)
   const payMonth = view === "gunluk" ? date.slice(0, 7) : ym;
+  const [py, pm] = payMonth.split("-").map(Number);
+  const payFirst = `${payMonth}-01`;
+  const payLast = `${payMonth}-${String(new Date(Date.UTC(py, pm, 0)).getUTCDate()).padStart(2, "0")}`;
   const fetchFor = (ownerId: string) =>
     Promise.all([
       listMachines(siteId, ownerId),
       view === "gunluk" || view === "gelenler" ? listDayAttendance(siteId, ownerId, date) : Promise.resolve(null),
-      view === "aylik" || view === "kira" ? getMonthMachineData(siteId, ownerId, firstDay, lastDay) : Promise.resolve(null),
+      // Günlük ekranda da gösterilen günün ayı gerekir (ödeme onayında "puantaj ödemeyle uyumlu mu" için)
+      view === "aylik" || view === "kira" || view === "gunluk" ? getMonthMachineData(siteId, ownerId, payFirst, payLast) : Promise.resolve(null),
       view === "kira" || view === "gunluk" || view === "aylik" ? listMonthRentalPayments(siteId, ownerId, payMonth) : Promise.resolve(null),
     ]);
   const [profile, role, owners, firstFetch, allocations, categories] = await Promise.all([
@@ -91,10 +94,17 @@ export default async function MachinesPage({
   const [machines, dayEntries, monthData, rentalPayments] = ownerId === requested ? firstFetch : await fetchFor(ownerId);
   const canWrite = canWriteRole(role);
   const ownerName = owners.find((o) => o.id === ownerId)?.name;
-  const paidByMachine: Record<number, { count: number; amount: number }> = {};
+  // Makine başına o ayın kira ödemesi bilgisi (işaret değişimi onayı için). `synced`: ödemelerin hepsi puantaja bağlı mı?
+  const paidByMachine: Record<number, PaidInfo> = {};
   for (const p of rentalPayments ?? []) {
-    const cur = paidByMachine[p.machineId] ?? { count: 0, amount: 0 };
-    paidByMachine[p.machineId] = { count: cur.count + 1, amount: cur.amount + p.amount };
+    const mc = machines.find((x) => x.id === p.machineId);
+    if (!mc?.rate_unit) continue;
+    const cur = paidByMachine[p.machineId] ?? { count: 0, amount: 0, synced: true, unit: mc.rate_unit, payments: [] };
+    cur.count += 1;
+    cur.amount += p.amount;
+    cur.synced = cur.synced && p.synced && p.qty !== null && p.rate !== null;
+    if (p.qty !== null && p.rate !== null) cur.payments.push({ qty: p.qty, rate: p.rate });
+    paidByMachine[p.machineId] = cur;
   }
 
   // Bağlantılar: admin'de seçili ortak korunur

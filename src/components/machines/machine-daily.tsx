@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { FormError } from "@/components/auth/field";
 import { machineSubtitle } from "@/lib/machines/labels";
 import { saveMachineDay, setMachineAttendance } from "@/lib/machines/actions";
-import { unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
+import { hoursConfirmText, markConfirmText, unmarkConfirmText, type PaidInfo } from "@/lib/machines/unmark";
 import { MACHINE_TYPE_LABELS } from "@/lib/machines/schemas";
 import type { DayEntry, MachineRow } from "@/lib/machines/queries";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,10 @@ export function MachineDaily({
     if (on) {
       const text = unmarkConfirmText(m.name, date, { hours: prevHours === "" ? null : Number(prevHours.replace(",", ".")), note: prevNote || null }, paid[m.id]);
       if (text && !window.confirm(text)) return;
+    } else {
+      // Ay tam ödenmişse yeni gün ödemeyi de artırır: önce sor
+      const text = markConfirmText(m.name, date, paid[m.id]);
+      if (text && !window.confirm(text)) return;
     }
     setEntries((p) => ({ ...p, [m.id]: on ? undefined : { hours: null, note: null } }));
     setBusy((b) => new Set(b).add(m.id));
@@ -125,6 +129,14 @@ export function MachineDaily({
     const cur = entries[m.id];
     // Değişmediyse sunucuya gitme
     if (cur && hoursText(cur.hours) === h && (cur.note ?? "") === n) return;
+    // Saatlik kirada, ay tam ödenmişse saat değişimi ödemeyi de değiştirir: önce sor, vazgeçilirse eski değer geri yazılır
+    const newHours = h === "" ? null : Number(h.replace(",", "."));
+    const confirmText = cur ? hoursConfirmText(m.name, date, cur.hours, newHours, paid[m.id]) : null;
+    if (confirmText && !window.confirm(confirmText)) {
+      setHours((x) => ({ ...x, [m.id]: hoursText(cur?.hours) }));
+      setNotes((x) => ({ ...x, [m.id]: cur?.note ?? "" }));
+      return;
+    }
     setError(null);
     const res = await saveMachineDay(siteId, m.id, date, { hours: h, note: n }).catch(() => null);
     if (!res || !res.ok) return setError(res && !res.ok ? res.error : "Saat/not kaydedilemedi, bağlantınızı kontrol edip tekrar deneyin.");

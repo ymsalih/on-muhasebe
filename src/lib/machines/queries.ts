@@ -78,6 +78,8 @@ export type RentalPayment = {
   rate: number | null;
   unit: RateUnit | null;
   sourceIncomeId: number | null;
+  /** Ödeme puantaja bağlı mı (ay tam ödenmiş)? Bağlıysa puantaj değişince otomatik güncellenir. */
+  synced: boolean;
 };
 
 /** Bir ortağın bir aya (YYYY-MM) ait kira ödemeleri: makineye bağlı giderler. */
@@ -85,7 +87,7 @@ export async function listMonthRentalPayments(siteId: number, ownerId: string, y
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, machine_id, amount, transaction_date, payment_method, machine_qty, machine_rate, machine_unit, source_income_id")
+    .select("id, machine_id, amount, transaction_date, payment_method, machine_qty, machine_rate, machine_unit, source_income_id, machine_synced")
     .eq("site_id", siteId)
     .eq("user_id", ownerId)
     .eq("period_month", `${ym}-01`)
@@ -104,6 +106,7 @@ export async function listMonthRentalPayments(siteId: number, ownerId: string, y
     machine_rate: number | string | null;
     machine_unit: RateUnit | null;
     source_income_id: number | null;
+    machine_synced: boolean;
   }[]).map((r) => ({
     id: r.id,
     machineId: r.machine_id,
@@ -114,5 +117,6 @@ export async function listMonthRentalPayments(siteId: number, ownerId: string, y
     rate: r.machine_rate === null ? null : Number(r.machine_rate),
     unit: r.machine_unit,
     sourceIncomeId: r.source_income_id,
+    synced: r.machine_synced,
   }));
 }

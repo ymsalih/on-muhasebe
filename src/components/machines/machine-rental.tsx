@@ -260,6 +260,7 @@ export function MachineRental({
                   lines={[
                     [formatDate(p.date), p.qty !== null && p.rate !== null && p.unit && `${formatNumber(p.qty)} ${unitNoun(p.unit)} × ${formatCurrency(p.rate)}`, p.method && PAYMENT_METHOD_LABELS[p.method]].filter(Boolean).join(" · "),
                     p.sourceIncomeId !== null ? `Kaynak gelir: ${incomeLabels[p.sourceIncomeId] ?? "gelir kaydı"}` : "Kaynak gelir belirtilmedi",
+                    p.synced ? "Puantaja bağlı: puantaj değişince otomatik güncellenir" : null,
                   ]}
                   trailing={<span className="text-sm font-semibold tabular-nums text-orange-700 dark:text-orange-400">{formatCurrency(p.amount)}</span>}
                 />
