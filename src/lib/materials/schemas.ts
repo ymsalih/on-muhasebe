@@ -7,7 +7,6 @@ const money = (label: string) =>
 export const materialEntrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih seçin."),
   name: z.string().trim().min(2, "Malzeme adı en az 2 karakter olmalı.").max(150, "Malzeme adı çok uzun."),
-  variant: z.string().trim().max(150, "Cins en fazla 150 karakter olabilir."),
   unit: z.string().trim().min(1, "Birim girin (ör. adet, kg, torba).").max(30, "Birim en fazla 30 karakter olabilir."),
   quantity: money("Miktar").refine((v) => Number(v.replace(",", ".")) > 0, "Miktar 0'dan büyük olmalı."),
   unitPrice: z.string().trim().min(1, "Birim fiyatı girin.").pipe(money("Birim fiyat")),

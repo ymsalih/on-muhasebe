@@ -6,7 +6,6 @@ export type EntryRow = {
   id: number;
   date: string;
   name: string;
-  variant: string | null;
   unit: string;
   quantity: number;
   unitPrice: number;
@@ -24,7 +23,7 @@ export async function listMaterialEntries(siteId: number, from: string, to: stri
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("material_entries")
-    .select("id, entry_date, name, variant, unit, quantity, unit_price, total_amount, supplier, used_for, note, users(full_name)")
+    .select("id, entry_date, name, unit, quantity, unit_price, total_amount, supplier, used_for, note, users(full_name)")
     .eq("site_id", siteId)
     .gte("entry_date", from)
     .lte("entry_date", to)
@@ -37,7 +36,6 @@ export async function listMaterialEntries(siteId: number, from: string, to: stri
     id: number;
     entry_date: string;
     name: string;
-    variant: string | null;
     unit: string;
     quantity: number | string;
     unit_price: number | string;
@@ -50,7 +48,6 @@ export async function listMaterialEntries(siteId: number, from: string, to: stri
     id: r.id,
     date: r.entry_date,
     name: r.name,
-    variant: r.variant,
     unit: r.unit,
     quantity: Number(r.quantity),
     unitPrice: Number(r.unit_price),
@@ -80,17 +77,17 @@ export async function getCostBreakdown(siteId: number, from: string, to: string,
   }));
 }
 
-export type Suggestions = { names: string[]; variants: string[]; units: string[]; suppliers: string[]; usages: string[] };
+export type Suggestions = { names: string[]; units: string[]; suppliers: string[]; usages: string[] };
 
 /** Formdaki otomatik tamamlama önerileri: bu şantiyede daha önce girilmiş değerler. */
 export async function getSuggestions(siteId: number): Promise<Suggestions> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("material_entries")
-    .select("name, variant, unit, supplier, used_for")
+    .select("name, unit, supplier, used_for")
     .eq("site_id", siteId)
     .order("id", { ascending: false })
     .limit(300);
-  const uniq = (key: "name" | "variant" | "unit" | "supplier" | "used_for") => [...new Set((data ?? []).map((r) => r[key]).filter((v): v is string => !!v))].slice(0, 50);
-  return { names: uniq("name"), variants: uniq("variant"), units: uniq("unit"), suppliers: uniq("supplier"), usages: uniq("used_for") };
+  const uniq = (key: "name" | "unit" | "supplier" | "used_for") => [...new Set((data ?? []).map((r) => r[key]).filter((v): v is string => !!v))].slice(0, 50);
+  return { names: uniq("name"), units: uniq("unit"), suppliers: uniq("supplier"), usages: uniq("used_for") };
 }

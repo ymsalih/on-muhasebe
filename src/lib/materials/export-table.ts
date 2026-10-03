@@ -17,7 +17,7 @@ export function entriesTable(siteName: string, from: string, to: string, rows: E
     headers: ["Tarih", "Malzeme", "Miktar", "Birim", "Birim fiyat", "Maliyet", "Kimden", "Kullanım yeri", "Giren"],
     moneyCols: [4, 5],
     intCols: [2],
-    rows: rows.map((r) => [formatDate(r.date), r.variant ? `${r.name} · ${r.variant}` : r.name, r.quantity, r.unit, r.unitPrice, r.total, r.supplier ?? "", r.usedFor ?? "", r.enteredBy ?? ""]),
+    rows: rows.map((r) => [formatDate(r.date), r.name, r.quantity, r.unit, r.unitPrice, r.total, r.supplier ?? "", r.usedFor ?? "", r.enteredBy ?? ""]),
     totals: ["Toplam", "", "", "", "", rows.reduce((s, r) => s + r.total, 0), "", "", ""],
   };
 }

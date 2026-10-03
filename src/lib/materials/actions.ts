@@ -30,7 +30,6 @@ export async function saveMaterialEntry(siteId: number, entryId: number | null, 
   const row = {
     entry_date: v.date,
     name: v.name,
-    variant: v.variant || null,
     unit: v.unit,
     quantity: num(v.quantity),
     unit_price: num(v.unitPrice),

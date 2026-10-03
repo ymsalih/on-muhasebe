@@ -27,6 +27,7 @@ export function MaterialEntries({
   entries,
   hasMore,
   suggestions,
+  showEnteredBy,
 }: {
   siteId: number;
   canWrite: boolean;
@@ -34,6 +35,8 @@ export function MaterialEntries({
   entries: EntryRow[];
   hasMore: boolean;
   suggestions: Suggestions;
+  /** Yalnızca admin için: kayıtları kimin girdiğini göster (ortaklar zaten yalnızca kendi kayıtlarını görür). */
+  showEnteredBy?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -44,7 +47,6 @@ export function MaterialEntries({
 
   const [date, setDate] = useState(today);
   const [name, setName] = useState("");
-  const [variant, setVariant] = useState("");
   const [unit, setUnit] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
@@ -56,7 +58,6 @@ export function MaterialEntries({
     setEditing(row);
     setDate(row?.date ?? today);
     setName(row?.name ?? "");
-    setVariant(row?.variant ?? "");
     setUnit(row?.unit ?? "");
     setQuantity(row ? numText(row.quantity) : "");
     setUnitPrice(row ? numText(row.unitPrice) : "");
@@ -70,7 +71,7 @@ export function MaterialEntries({
 
   async function onSave() {
     setError(null);
-    const parsed = materialEntrySchema.safeParse({ date, name, variant, unit, quantity, unitPrice, supplier, usedFor, note });
+    const parsed = materialEntrySchema.safeParse({ date, name, unit, quantity, unitPrice, supplier, usedFor, note });
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Girilen bilgiler geçersiz.");
     setBusy(true);
     const res = await saveMaterialEntry(siteId, editing?.id ?? null, parsed.data).catch(() => null);
@@ -124,9 +125,9 @@ export function MaterialEntries({
             <DataRow
               key={r.id}
               onClick={canWrite ? () => show(r) : undefined}
-              title={r.variant ? `${r.name} · ${r.variant}` : r.name}
+              title={r.name}
               lines={[
-                [formatDate(r.date), r.supplier && `Kimden: ${r.supplier}`, r.enteredBy && `Giren: ${r.enteredBy}`].filter(Boolean).join(" · "),
+                [formatDate(r.date), r.supplier && `Kimden: ${r.supplier}`, showEnteredBy && r.enteredBy && `Giren: ${r.enteredBy}`].filter(Boolean).join(" · "),
                 r.usedFor ? `Kullanım: ${r.usedFor}` : <span key="u" className="italic">Kullanım yeri girilmedi</span>,
               ]}
               trailing={
@@ -162,9 +163,6 @@ export function MaterialEntries({
             <Field id="me-name" label="Malzeme">
               <Input id="me-name" list="dl-me-names" autoComplete="off" className="h-11" value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field id="me-variant" label="Cinsi / çeşidi / çapı (opsiyonel)">
-              <Input id="me-variant" list="dl-me-variants" autoComplete="off" className="h-11" value={variant} onChange={(e) => setVariant(e.target.value)} />
-            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field id="me-qty" label="Miktar">
                 <Input id="me-qty" inputMode="decimal" autoComplete="off" className="h-11" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
@@ -190,7 +188,6 @@ export function MaterialEntries({
               <Input id="me-note" autoComplete="off" className="h-11" value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             <datalist id="dl-me-names">{suggestions.names.map((v) => <option key={v} value={v} />)}</datalist>
-            <datalist id="dl-me-variants">{suggestions.variants.map((v) => <option key={v} value={v} />)}</datalist>
             <datalist id="dl-me-units">{units.map((v) => <option key={v} value={v} />)}</datalist>
             <datalist id="dl-me-suppliers">{suggestions.suppliers.map((v) => <option key={v} value={v} />)}</datalist>
             <datalist id="dl-me-usages">{suggestions.usages.map((v) => <option key={v} value={v} />)}</datalist>

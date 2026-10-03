@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FileSpreadsheet, FileText, ListChecks, Package, Wallet } from "lucide-react";
 import { MaterialEntries } from "@/components/materials/material-entries";
 import { RangeFilter, buildHref } from "@/components/cash/range-filter";
@@ -28,12 +28,16 @@ const EMPTY_TEXT: Record<Breakdown, string> = {
   usage: "Bu dönemde malzeme girişi yok.",
 };
 const HINT: Record<Breakdown, string> = {
-  partner: "Her ortağın bu şantiyede girdiği malzemelerin toplam maliyeti.",
-  item: "Aynı ad, cins ve birimdeki girişler birleştirilir. En pahalıdan başlar.",
+  partner: "Her ortağın bu şantiyede kendi girdiği malzemelerin toplam maliyeti (ortaklar birbirinin kayıtlarını görmez).",
+  item: "Aynı ad ve birimdeki girişler birleştirilir. En pahalıdan başlar.",
   usage: "Malzemelerin nerede/ne için kullanıldığına göre maliyet. Kullanım yeri girilmemiş girişler “Belirtilmemiş” altında toplanır.",
 };
 
-/** Malzeme girişleri: alınan malzemenin maliyeti ve nerede kullanıldığı. Şantiye bazlı; toplamlar ortak bazında da ayrı görünür. Genel kasadan bağımsızdır. */
+/**
+ * Malzeme girişleri: alınan malzemenin maliyeti ve nerede kullanıldığı. Her ortağın girişleri KENDİNE özeldir (RLS):
+ * ortak yalnızca kendi girdiklerini görür; admin hepsini salt okur ve "Ortak Bazında" sekmesiyle ayrı ayrı görür.
+ * Genel kasadan bağımsızdır.
+ */
 export default async function MaterialsPage({
   params,
   searchParams,
@@ -52,14 +56,18 @@ export default async function MaterialsPage({
   const base = `/sites/${siteId}/malzeme`;
 
   // Tüm veri kimlik doğrulamayla birlikte (paralel) istenir. Üst kartlar için ortak kırılımı her zaman gelir.
-  const [, role, perPartner, extra, list, suggestions] = await Promise.all([
+  const [profile, role, perPartner, extra, list, suggestions] = await Promise.all([
     requireUser(),
     getSiteRole(siteId),
     getCostBreakdown(siteId, range.from, range.to, "partner"),
     current.by && current.by !== "partner" ? getCostBreakdown(siteId, range.from, range.to, current.by) : Promise.resolve(null),
     current.key === "giris" ? listMaterialEntries(siteId, range.from, range.to) : Promise.resolve({ rows: [], hasMore: false }),
-    current.key === "giris" ? getSuggestions(siteId) : Promise.resolve({ names: [], variants: [], units: [], suppliers: [], usages: [] }),
+    current.key === "giris" ? getSuggestions(siteId) : Promise.resolve({ names: [], units: [], suppliers: [], usages: [] }),
   ]);
+  const isAdmin = profile.role === "admin";
+  // "Ortak Bazında" yalnızca admin içindir: ortaklar zaten yalnızca kendi kayıtlarını görür.
+  if (current.key === "ortak" && !isAdmin) redirect(base);
+  const visibleViews = VIEWS.filter((v) => v.key !== "ortak" || isAdmin);
   const canWrite = canWriteRole(role);
   const totalCost = perPartner.reduce((s, r) => s + r.total, 0);
   const totalCount = perPartner.reduce((s, r) => s + r.count, 0);
@@ -111,11 +119,11 @@ export default async function MaterialsPage({
           </div>
         ))}
       </section>
-      <p className="-mt-2 text-xs text-muted-foreground">Bu şantiyenin toplamıdır; genel kasadan bağımsızdır. Maliyet = miktar × birim fiyat.</p>
+      <p className="-mt-2 text-xs text-muted-foreground">{isAdmin ? "Bu şantiyede tüm ortakların girdiklerinin toplamı (salt görüntüleme)." : "Yalnızca sizin bu şantiyede girdiğiniz malzemeler; diğer ortakların kayıtları sizden ayrıdır."} Genel kasadan bağımsızdır. Maliyet = miktar × birim fiyat.</p>
 
       <nav aria-label="Malzeme sekmeleri" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <div className="inline-flex rounded-lg bg-muted p-1">
-          {VIEWS.map((v) => (
+          {visibleViews.map((v) => (
             <Link
               key={v.key}
               href={buildHref(base, { ...rangeParams, gorunum: v.key === "giris" ? undefined : v.key })}
@@ -130,7 +138,7 @@ export default async function MaterialsPage({
       </nav>
 
       {current.key === "giris" ? (
-        <MaterialEntries siteId={siteId} canWrite={canWrite} today={today} entries={list.rows} hasMore={list.hasMore || list.rows.length > ENTRY_LIST_LIMIT} suggestions={suggestions} />
+        <MaterialEntries showEnteredBy={isAdmin} siteId={siteId} canWrite={canWrite} today={today} entries={list.rows} hasMore={list.hasMore || list.rows.length > ENTRY_LIST_LIMIT} suggestions={suggestions} />
       ) : (
         <section className="space-y-2" aria-label={current.label}>
           <p className="text-xs text-muted-foreground">{HINT[current.by!]}</p>
