@@ -35,7 +35,7 @@ function mapError(error: { code?: string; message?: string }): string {
     case "23503":
       if (/Makine bulunamadı|ortağa ait/.test(error.message ?? "")) return "Seçilen makine bulunamadı.";
       if (/Kaynak gelir/.test(error.message ?? "")) return "Seçilen gelir bu şantiyeye ait bir gelir kaydı değil.";
-      return "Bu makineye bağlı kira ödemeleri var; silmek için önce ödemeleri silin.";
+      return "Bu makineye bağlı kira ödemeleri veya yakıt kayıtları var; silmek için önce onları silin.";
     case "22007":
       return "Gelecek bir tarihe puantaj girilemez.";
     case "23514":

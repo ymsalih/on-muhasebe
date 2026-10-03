@@ -22,6 +22,7 @@
     "test:rls:billing": "tsx scripts/test-rls-billing.mts",
     "test:rls:income-source": "tsx scripts/test-rls-income-source.mts",
     "test:rls:machines": "tsx scripts/test-rls-machines.mts",
+    "test:rls:fuel": "tsx scripts/test-rls-fuel.mts",
     "test:machine-sync": "tsx scripts/test-machine-sync.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },
