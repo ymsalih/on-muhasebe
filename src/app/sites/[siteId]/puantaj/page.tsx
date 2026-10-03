@@ -4,8 +4,12 @@ import { notFound } from "next/navigation";
 import { CalendarSearch, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { DailyAttendance, type DailyPerson, type ExcludedPerson, type PresentMeta } from "@/components/attendance/daily-attendance";
 import { MonthlyMatrix } from "@/components/attendance/monthly-matrix";
+import { WagePayments } from "@/components/attendance/wage-payments";
 import { requireUser } from "@/lib/auth/session";
 import { getMonthData, listAttendancePeople, listPresent } from "@/lib/attendance/queries";
+import { getIncomeAllocations, listCategories } from "@/lib/cash/queries";
+import { incomeShortLabel, toIncomeSources } from "@/lib/cash/sources";
+import { listMonthWagePayments } from "@/lib/personnel/payments";
 import { addDays, workAvailability, todayInIstanbul } from "@/lib/personnel/status";
 import { formatDate } from "@/lib/format";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
@@ -21,7 +25,7 @@ function shiftMonth(ym: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Puantaj (CLAUDE.md 7.3-E): Günlük Gelenler + Aylık Özet sekmeleri. */
+/** Puantaj (CLAUDE.md 7.3-E): Günlük Gelenler, Tarihe Göre Liste, Aylık Özet ve Maaş Ödemeleri sekmeleri. */
 export default async function AttendancePage({
   params,
   searchParams,
@@ -37,16 +41,19 @@ export default async function AttendancePage({
   const today = todayInIstanbul();
   const monthly = sp.gorunum === "aylik";
   const attendees = sp.gorunum === "gelenler";
-  const view = monthly ? "aylik" : attendees ? "gelenler" : "gunluk";
+  const wages = sp.gorunum === "maas";
+  const view = monthly ? "aylik" : attendees ? "gelenler" : wages ? "maas" : "gunluk";
   const base = `/sites/${siteId}/puantaj`;
 
   const tabs = (
+    <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
     <div role="tablist" aria-label="Görünüm" className="inline-flex rounded-lg bg-muted p-1">
       {(
         [
           ["gunluk", "Günlük Gelenler", base],
           ["gelenler", "Tarihe Göre Liste", `${base}?gorunum=gelenler`],
           ["aylik", "Aylık Özet", `${base}?gorunum=aylik`],
+          ["maas", "Maaş Ödemeleri", `${base}?gorunum=maas`],
         ] as const
       ).map(([key, label, href]) => (
         <Link
@@ -55,13 +62,14 @@ export default async function AttendancePage({
           role="tab"
           aria-selected={key === view}
           className={cn(
-            "inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium",
+            "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-4 text-sm font-medium",
             key === view ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {label}
         </Link>
       ))}
+    </div>
     </div>
   );
 
@@ -73,48 +81,79 @@ export default async function AttendancePage({
 
   // Görünüme göre gereken TÜM veri, kimlik doğrulamayla birlikte (paralel) istenir; art arda beklemek her geçişe
   // bir ağ turu daha ekler.
-  const [, people, role, monthData, presentRows] = await Promise.all([
+  const [, people, role, monthData, presentRows, wagePayments, allocations, categories] = await Promise.all([
     requireUser(),
     listAttendancePeople(siteId),
     getSiteRole(siteId),
-    monthly ? getMonthData(siteId, `${ym}-01`, last) : Promise.resolve(null),
-    monthly ? Promise.resolve(null) : listPresent(siteId, date),
+    monthly || wages ? getMonthData(siteId, `${ym}-01`, last) : Promise.resolve(null),
+    monthly || wages ? Promise.resolve(null) : listPresent(siteId, date),
+    wages ? listMonthWagePayments(siteId, ym) : Promise.resolve(null),
+    wages ? getIncomeAllocations(siteId, null, null) : Promise.resolve(null),
+    wages ? listCategories(siteId) : Promise.resolve(null),
   ]);
+
+  // Ay gezgini (Aylık Özet ve Maaş Ödemeleri ortak): önceki/sonraki ay, "Bu ay"
+  const monthNav = (hrefFor: (v: string) => string, resetHref: string) => {
+    const prev = shiftMonth(ym, -1);
+    const next = shiftMonth(ym, 1);
+    return (
+      <div className="flex items-center gap-2">
+        <Link href={hrefFor(prev)} aria-label="Önceki ay" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
+          <ChevronLeft className="size-5" aria-hidden />
+        </Link>
+        <p className="min-w-40 text-center font-semibold">
+          {MONTHS[m - 1]} {y}
+        </p>
+        {next <= currentYm ? (
+          <Link href={hrefFor(next)} aria-label="Sonraki ay" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
+            <ChevronRight className="size-5" aria-hidden />
+          </Link>
+        ) : (
+          <span aria-hidden className="inline-flex size-11 items-center justify-center rounded-lg border opacity-40">
+            <ChevronRight className="size-5" />
+          </span>
+        )}
+        {ym !== currentYm && (
+          <Link href={resetHref} className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary">
+            Bu ay
+          </Link>
+        )}
+      </div>
+    );
+  };
 
   // ---------------- Aylık Özet ----------------
   if (monthly) {
-    const data = monthData!;
-    const prev = shiftMonth(ym, -1);
-    const next = shiftMonth(ym, 1);
-    const monthHref = (v: string) => `${base}?gorunum=aylik&ay=${v}`;
-
     return (
       <div className="max-w-full space-y-4">
         <h1 className="text-xl font-semibold">Puantaj</h1>
         {tabs}
-        <div className="flex items-center gap-2">
-          <Link href={monthHref(prev)} aria-label="Önceki ay" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
-            <ChevronLeft className="size-5" aria-hidden />
-          </Link>
-          <p className="min-w-40 text-center font-semibold">
-            {MONTHS[m - 1]} {y}
-          </p>
-          {next <= currentYm ? (
-            <Link href={monthHref(next)} aria-label="Sonraki ay" className="inline-flex size-11 items-center justify-center rounded-lg border hover:bg-muted">
-              <ChevronRight className="size-5" aria-hidden />
-            </Link>
-          ) : (
-            <span aria-hidden className="inline-flex size-11 items-center justify-center rounded-lg border opacity-40">
-              <ChevronRight className="size-5" />
-            </span>
-          )}
-          {ym !== currentYm && (
-            <Link href={`${base}?gorunum=aylik`} className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary">
-              Bu ay
-            </Link>
-          )}
-        </div>
-        <MonthlyMatrix siteId={siteId} ym={ym} today={today} people={people} data={data} canWrite={canWriteRole(role)} />
+        {monthNav((v) => `${base}?gorunum=aylik&ay=${v}`, `${base}?gorunum=aylik`)}
+        <MonthlyMatrix siteId={siteId} ym={ym} today={today} people={people} data={monthData!} canWrite={canWriteRole(role)} />
+      </div>
+    );
+  }
+
+  // ---------------- Maaş Ödemeleri: o ay çalışılan gün × günlük ücret; ödeme kasaya "İşçilik" gideri olarak düşer ----------------
+  if (wages) {
+    const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
+    const incomeLabels = Object.fromEntries((allocations ?? []).map((a) => [a.id, incomeShortLabel(a, catName)]));
+    return (
+      <div className="max-w-3xl space-y-4">
+        <h1 className="text-xl font-semibold">Puantaj</h1>
+        {tabs}
+        {monthNav((v) => `${base}?gorunum=maas&ay=${v}`, `${base}?gorunum=maas`)}
+        <WagePayments
+          key={ym}
+          siteId={siteId}
+          ym={ym}
+          canWrite={canWriteRole(role)}
+          today={today}
+          people={people.map((p) => ({ id: p.id, name: p.full_name, dailyWage: p.daily_wage === null ? null : Number(p.daily_wage), days: monthData!.totals.get(p.id) ?? 0 }))}
+          payments={wagePayments!}
+          incomeSources={toIncomeSources(allocations ?? [], catName)}
+          incomeLabels={incomeLabels}
+        />
       </div>
     );
   }

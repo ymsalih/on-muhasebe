@@ -4,9 +4,9 @@ import type { WorkInput } from "@/lib/personnel/status";
 
 /** Puantajda gereken personel alanları (hassas sütun YOK). */
 const PERSON_COLUMNS =
-  "id, full_name, job, duty, status, hire_date, termination_date, temp_assignment_start, report_start, leave_start, return_date, absence_days_count";
+  "id, full_name, job, duty, status, hire_date, termination_date, temp_assignment_start, report_start, leave_start, return_date, absence_days_count, daily_wage";
 
-export type AttendancePerson = WorkInput & { id: number; full_name: string; job: string | null; duty: string | null };
+export type AttendancePerson = WorkInput & { id: number; full_name: string; job: string | null; duty: string | null; daily_wage: number | null };
 
 export async function listAttendancePeople(siteId: number): Promise<AttendancePerson[]> {
   const supabase = await createClient();

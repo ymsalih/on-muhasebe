@@ -11,34 +11,20 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const GENERIC_ERROR = "İşlem tamamlanamadı, bağlantınızı kontrol edip tekrar deneyin.";
 const NO_WRITE_ERROR = "Bu şantiyede kayıt ekleme/düzenleme yetkiniz yok.";
 
-function monthBoundsOf(month: string): { first: string; last: string } {
-  const [y, m] = month.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return { first: `${month}-01`, last: `${month}-${String(lastDay).padStart(2, "0")}` };
+function mapError(error: { code?: string; message?: string }): string {
+  if (error.code === "42501") return NO_WRITE_ERROR;
+  if (error.code === "23503" && /Kaynak gelir/.test(error.message ?? "")) return "Seçilen gelir bu şantiyeye ait bir gelir kaydı değil.";
+  return GENERIC_ERROR;
 }
 
-/** Puantajdaki o ayın gün sayısı: ödeme penceresinde varsayılan gün olarak önerilir. */
-export async function getMonthWorkDays(siteId: number, personId: number, month: string): Promise<Result<{ days: number }>> {
-  await requireAuthId();
-  if (!Number.isInteger(siteId) || !Number.isInteger(personId) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    return { ok: false, error: "Geçersiz istek." };
-  }
-  const { first, last } = monthBoundsOf(month);
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("attendance")
-    .select("id", { count: "exact", head: true })
-    .eq("site_id", siteId)
-    .eq("personnel_id", personId)
-    .gte("work_date", first)
-    .lte("work_date", last);
-  if (error) return { ok: false, error: GENERIC_ERROR };
-  return { ok: true, days: count ?? 0 };
+function refresh(siteId: number) {
+  revalidatePath(`/sites/${siteId}`, "layout");
 }
 
 /**
- * Maaş ödemesi kaydeder/günceller: kasada bir GİDER olarak (kategori "İşçilik", personele bağlı) yazılır.
- * Tutar = gün × günlük tutar, sunucuda hesaplanır. Yetki RLS'tedir (owner/partner).
+ * Maaş ödemesi kaydeder/günceller (Puantaj → Maaş Ödemeleri): kasada bir GİDER olarak (kategori "İşçilik", personele bağlı)
+ * yazılır ve isteğe bağlı olarak hangi GELİRDEN ödendiği (kaynak gelir) belirtilir. Tutar = gün × günlük tutar,
+ * sunucuda hesaplanır; istemciden alınmaz. Yetki RLS'tedir (owner/partner).
  */
 export async function savePersonPayment(
   siteId: number,
@@ -74,6 +60,7 @@ export async function savePersonPayment(
     work_days: days,
     daily_rate: rate,
     period_month: `${v.month}-01`,
+    source_income_id: v.sourceIncomeId ? Number(v.sourceIncomeId) : null,
   };
 
   if (txId === null) {
@@ -82,8 +69,8 @@ export async function savePersonPayment(
       .insert({ ...row, site_id: siteId, user_id: userId })
       .select("id")
       .single();
-    if (error || !data) return { ok: false, error: error?.code === "42501" ? NO_WRITE_ERROR : GENERIC_ERROR };
-    revalidatePath(`/sites/${siteId}`, "layout");
+    if (error || !data) return { ok: false, error: error ? mapError(error) : GENERIC_ERROR };
+    refresh(siteId);
     return { ok: true, id: data.id };
   }
 
@@ -94,8 +81,8 @@ export async function savePersonPayment(
     .eq("site_id", siteId)
     .eq("personnel_id", personId)
     .select("id");
-  if (error) return { ok: false, error: error.code === "42501" ? NO_WRITE_ERROR : GENERIC_ERROR };
+  if (error) return { ok: false, error: mapError(error) };
   if (!data || data.length === 0) return { ok: false, error: NO_WRITE_ERROR };
-  revalidatePath(`/sites/${siteId}`, "layout");
+  refresh(siteId);
   return { ok: true, id: txId };
 }

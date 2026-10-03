@@ -20,6 +20,8 @@ export const personPaymentSchema = z.object({
     .refine((v) => Number(v.replace(",", ".")) > 0, "Günlük tutar 0'dan büyük olmalı."),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ödeme tarihini seçin."),
   paymentMethod: z.union([z.literal(""), z.enum(PAYMENT_METHODS)]),
+  /** Hangi gelirden ödendi (opsiyonel): gelir kaydının id'si. */
+  sourceIncomeId: z.string().regex(/^\d*$/, "Geçersiz gelir."),
 });
 export type PersonPaymentValues = z.infer<typeof personPaymentSchema>;
 

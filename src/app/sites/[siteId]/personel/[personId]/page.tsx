@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PersonnelForm } from "@/components/personnel/personnel-form";
 import { SensitiveField } from "@/components/personnel/sensitive-field";
-import { PersonPayments, type PaymentRow } from "@/components/personnel/person-payments";
+import { PersonPaymentHistory } from "@/components/personnel/person-payment-history";
 import { StatusBadge } from "@/components/personnel/status-badge";
 import { requireUser } from "@/lib/auth/session";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -41,27 +41,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   if (!person) notFound();
 
   const canWrite = canWriteRole(role);
-  const payments: PaymentRow[] = paymentList.map((p) => ({
-    id: p.id,
-    amount: p.amount,
-    date: p.transaction_date,
-    method: p.payment_method,
-    workDays: p.work_days,
-    dailyRate: p.daily_rate,
-    periodMonth: p.period_month ? p.period_month.slice(0, 7) : null,
-    description: p.description,
-  }));
-  const paymentsSection = (
-    <PersonPayments
-      siteId={siteId}
-      personId={personId}
-      personName={person.full_name}
-      dailyWage={person.daily_wage === null ? null : Number(person.daily_wage)}
-      payments={payments}
-      canWrite={canWrite}
-      today={todayInIstanbul()}
-    />
-  );
+  const paymentsSection = <PersonPaymentHistory siteId={siteId} payments={paymentList} />;
   const today = todayInIstanbul();
   const eff = effectiveStatus(person, today);
   const statusNote = describeStatus(eff);
