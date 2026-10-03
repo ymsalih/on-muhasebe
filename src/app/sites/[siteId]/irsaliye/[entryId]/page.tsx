@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getEntry, getSuggestions, listParties } from "@/lib/goods/queries";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Kaydı Düzenle — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Kaydı Düzenle — ÖZN YOL" };
 
 export default async function EditGoodsEntryPage({ params }: { params: Promise<{ siteId: string; entryId: string }> }) {
   const { siteId: rawSite, entryId: rawEntry } = await params;

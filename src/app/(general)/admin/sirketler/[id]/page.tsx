@@ -9,7 +9,7 @@ import { getCompanySummary, listCompanyEntries } from "@/lib/company/queries";
 import { todayInIstanbul } from "@/lib/personnel/status";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Şirket Kasası — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şirket Kasası — ÖZN YOL" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

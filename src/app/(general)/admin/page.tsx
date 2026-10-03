@@ -4,7 +4,7 @@ import { Building2, ChevronRight, UserPlus, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Admin Paneli — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Admin Paneli — ÖZN YOL" };
 
 /**
  * Admin genel görünümü (CLAUDE.md Bölüm 1): kullanıcı hesabı açma + tüm ortak/şantiyelerin salt görüntülenmesi.

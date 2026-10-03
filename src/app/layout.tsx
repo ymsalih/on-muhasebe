@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Şantiye Ön Muhasebe",
-  description: "Şantiye bazlı ön muhasebe sistemi",
+  title: "ÖZN YOL",
+  description: "ÖZN YOL Yapım İnşaat & İş Makineleri — şantiye bazlı ön muhasebe sistemi",
 };
 
 export const viewport: Viewport = {

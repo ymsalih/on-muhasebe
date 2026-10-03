@@ -15,7 +15,7 @@ import { formatDate } from "@/lib/format";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Puantaj — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Puantaj — ÖZN YOL" };
 
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 

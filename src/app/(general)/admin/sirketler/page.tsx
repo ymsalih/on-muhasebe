@@ -4,7 +4,7 @@ import { DataRow } from "@/components/data-row";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Şirket Kasaları — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şirket Kasaları — ÖZN YOL" };
 
 /** Admin: ortakların şirket kasalarını SALT OKUR (kayıt ekleyemez/değiştiremez). */
 export default async function CompaniesPage() {

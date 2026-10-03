@@ -6,7 +6,7 @@ import { PartyForm } from "@/components/parties/party-form";
 import { requireUser } from "@/lib/auth/session";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Yeni Cari — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Yeni Cari — ÖZN YOL" };
 
 export default async function NewPartyPage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId: rawId } = await params;

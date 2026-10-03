@@ -8,7 +8,7 @@ import { listParties } from "@/lib/goods/queries";
 import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Yeni Personel — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Yeni Personel — ÖZN YOL" };
 
 export default async function NewPersonPage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId: rawId } = await params;

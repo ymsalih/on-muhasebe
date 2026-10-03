@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
-export const metadata: Metadata = { title: "Şifremi Unuttum — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şifremi Unuttum — ÖZN YOL" };
 
 export default function ForgotPasswordPage() {
   return (

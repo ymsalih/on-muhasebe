@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { NewSiteForm } from "@/components/sites/new-site-form";
 import { requireUser } from "@/lib/auth/session";
 
-export const metadata: Metadata = { title: "Yeni Şantiye — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Yeni Şantiye — ÖZN YOL" };
 
 /** Her ortağın kendi panelinden şantiye oluşturduğu ekran (7.3-B). Admin şantiye oluşturamaz. */
 export default async function NewSitePage() {

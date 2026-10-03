@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getParty } from "@/lib/parties/queries";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Cariyi Düzenle — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Cariyi Düzenle — ÖZN YOL" };
 
 export default async function EditPartyPage({ params }: { params: Promise<{ siteId: string; partyId: string }> }) {
   const { siteId: rawSite, partyId: rawParty } = await params;

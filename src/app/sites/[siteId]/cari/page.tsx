@@ -11,7 +11,7 @@ import { listPartyBalances } from "@/lib/parties/queries";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Cari Hesaplar — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Cari Hesaplar — ÖZN YOL" };
 
 /** Cari listesi (CLAUDE.md 7.3-F): ad arama, kategori çipleri, güncel bakiye (party_balances). */
 export default async function PartiesPage({

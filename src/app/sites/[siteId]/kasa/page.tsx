@@ -17,7 +17,7 @@ import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Genel Kasa — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Genel Kasa — ÖZN YOL" };
 
 const PAGE_SIZE = 100;
 const MAX_LIMIT = 1000;

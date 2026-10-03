@@ -10,7 +10,7 @@ import { ENTRY_LIST_LIMIT, listEntries, type EntryRow } from "@/lib/goods/querie
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "İrsaliye / Fatura — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "İrsaliye / Fatura — ÖZN YOL" };
 
 const TYPE_BADGE: Record<DocumentType, string> = {
   irsaliye: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",

@@ -13,7 +13,7 @@ import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Cari Detayı — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Cari Detayı — ÖZN YOL" };
 
 /** Cari detay (CLAUDE.md 7.3-F): ciro + bakiye kartı, kronolojik hareketler, "Ödeme/Tahsilat Ekle". */
 export default async function PartyDetailPage({ params }: { params: Promise<{ siteId: string; partyId: string }> }) {

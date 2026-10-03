@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { PartnerForm } from "@/components/admin/partner-form";
 import { requireAdmin } from "@/lib/auth/session";
 
-export const metadata: Metadata = { title: "Yeni Ortak — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Yeni Ortak — ÖZN YOL" };
 
 export default async function NewPartnerPage() {
   await requireAdmin();

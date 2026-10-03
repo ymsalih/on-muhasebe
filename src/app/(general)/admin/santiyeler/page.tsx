@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Şantiyeler — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şantiyeler — ÖZN YOL" };
 
 type SiteRow = {
   id: number;

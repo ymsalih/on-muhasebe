@@ -11,7 +11,7 @@ import { effectiveStatus, shortNote, todayInIstanbul } from "@/lib/personnel/sta
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Personel — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Personel — ÖZN YOL" };
 
 /** Personel listesi (CLAUDE.md 7.3-H): ad soyad, işi/görevi, renkli durum rozeti. Hassas alanlar listede yoktur. */
 export default async function PersonnelPage({

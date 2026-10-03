@@ -7,7 +7,7 @@ import { resolvePeriod } from "@/lib/company/period";
 import { getCompanySummary, listCompanyEntries } from "@/lib/company/queries";
 import { todayInIstanbul } from "@/lib/personnel/status";
 
-export const metadata: Metadata = { title: "Şirket Kasası — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şirket Kasası — ÖZN YOL" };
 
 /** Şirket Kasası: ortağın kendi şirketinin genel gelir/gideri ve dönem kâr/zararı. Şantiyeden bağımsızdır; her ortak yalnızca kendininkini görür. */
 export default async function CompanyPage({ searchParams }: { searchParams: Promise<{ gorunum?: string; tarih?: string; yil?: string }> }) {

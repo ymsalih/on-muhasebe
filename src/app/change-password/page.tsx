@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-logo";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { getProfile } from "@/lib/auth/session";
 
-export const metadata: Metadata = { title: "Şifre Değiştir — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şifre Değiştir — ÖZN YOL" };
 
 /** must_change_password = true ise giriş sonrası kullanıcı buraya yönlendirilir; şifre sıfırlama da buraya döner. */
 export default async function ChangePasswordPage() {
@@ -15,10 +15,8 @@ export default async function ChangePasswordPage() {
     <main className="flex min-h-dvh items-center justify-center bg-muted/30 px-4 py-8">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Building2 className="size-6" aria-hidden />
-          </span>
-          <h1 className="text-xl font-semibold">Şantiye Ön Muhasebe</h1>
+          <BrandMark className="w-32 rounded-2xl p-3 shadow-sm ring-1 ring-border" imgClassName="w-full" priority sizes="128px" />
+          <h1 className="text-balance text-xl font-semibold uppercase tracking-wide">ÖZN YOL YAPIM İNŞAAT &amp; İŞ MAKİNELERİ</h1>
         </div>
         <div className="space-y-5 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
           <div className="space-y-1">

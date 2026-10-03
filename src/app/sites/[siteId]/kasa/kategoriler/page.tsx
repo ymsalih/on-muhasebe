@@ -8,7 +8,7 @@ import { listCategories } from "@/lib/cash/queries";
 import { createClient } from "@/lib/supabase/server";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Kategoriler — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Kategoriler — ÖZN YOL" };
 
 export default async function CategoriesPage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId: rawId } = await params;

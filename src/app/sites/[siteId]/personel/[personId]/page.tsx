@@ -14,7 +14,7 @@ import { getPerson } from "@/lib/personnel/queries";
 import { describeStatus, effectiveStatus, todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 
-export const metadata: Metadata = { title: "Personel Detayı — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Personel Detayı — ÖZN YOL" };
 
 function Item({ label, value }: { label: string; value: React.ReactNode }) {
   return (

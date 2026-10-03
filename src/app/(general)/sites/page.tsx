@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Şantiyeler — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şantiyeler — ÖZN YOL" };
 
 type SiteCardData = {
   id: number;

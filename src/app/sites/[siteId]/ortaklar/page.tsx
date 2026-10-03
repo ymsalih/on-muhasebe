@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { SiteMemberRole } from "@/lib/sites/schemas";
 
-export const metadata: Metadata = { title: "Şantiye Ortakları — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şantiye Ortakları — ÖZN YOL" };
 
 type Row = {
   id: number;

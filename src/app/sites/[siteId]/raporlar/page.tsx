@@ -15,7 +15,7 @@ import { pieColor } from "@/lib/reports/colors";
 import { REPORT_TABS, REPORT_TAB_LABELS, loadReport, resolveTab, type CategoryRow } from "@/lib/reports/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Raporlar — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Raporlar — ÖZN YOL" };
 
 /** Raporlar (CLAUDE.md 7.3-I): dönem seçici + Genel Trend / Kategori Dağılımı / Cari Bazlı / Personel Bazlı, her sekmede PDF/Excel. */
 export default async function ReportsPage({

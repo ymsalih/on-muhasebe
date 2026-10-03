@@ -13,7 +13,7 @@ import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Malzeme — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Malzeme — ÖZN YOL" };
 
 type ViewKey = "giris" | "ortak" | "malzeme" | "kullanim";
 const VIEWS: { key: ViewKey; label: string; by?: Breakdown }[] = [

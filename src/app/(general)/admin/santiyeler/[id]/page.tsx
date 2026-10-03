@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { SITE_MEMBER_ROLE_LABELS, type SiteMemberRole } from "@/lib/sites/schemas";
 
-export const metadata: Metadata = { title: "Şantiye Detayı — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Şantiye Detayı — ÖZN YOL" };
 
 type SiteDetail = {
   id: number;

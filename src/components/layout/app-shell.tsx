@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/brand/brand-logo";
 import { signOut } from "@/lib/auth/actions";
 import {
   DropdownMenu,
@@ -231,8 +232,8 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
         )}
       >
         <div className={cn("flex h-16 items-center gap-2 border-b px-4", collapsed && "justify-center px-0")}>
-          <Building2 className="size-6 shrink-0 text-primary" aria-hidden />
-          <span className={cn("truncate text-base font-semibold", collapsed && "sr-only")}>Ön Muhasebe</span>
+          <BrandMark className="h-10 w-12 rounded-lg p-1 ring-1 ring-border" imgClassName="h-full w-full object-contain" sizes="48px" />
+          <span className={cn("truncate text-base font-semibold tracking-wide", collapsed && "sr-only")}>ÖZN YOL</span>
         </div>
         <nav aria-label="Ana menü" className="flex-1 space-y-1 overflow-y-auto p-3">
           {allItems.map((item) => (

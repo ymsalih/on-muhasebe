@@ -4,7 +4,7 @@ import { Phone, Plus, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Ortaklar — Şantiye Ön Muhasebe" };
+export const metadata: Metadata = { title: "Ortaklar — ÖZN YOL" };
 
 type PartnerRow = {
   id: string;

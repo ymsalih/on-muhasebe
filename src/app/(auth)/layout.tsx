@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { Building2 } from "lucide-react";
 import arkaplan from "@/assets/arkaplan.jpg";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -11,9 +10,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-black/50 via-black/35 to-black/55" />
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
-            <Building2 className="size-6" aria-hidden />
-          </span>
           <h1 className="text-balance text-xl font-semibold uppercase tracking-wide text-white drop-shadow-md">ÖZN YOL YAPIM İNŞAAT &amp; İŞ MAKİNELERİ</h1>
         </div>
         {/* Şeffaf (buzlu cam) kart: arkaplan görünür kalır; yazılar, alanlar ve düğme koyu zeminde okunaklı olacak şekilde yalnızca bu kartın içinde yeniden renklendirilir. */}
