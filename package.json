@@ -17,6 +17,7 @@
     "test:rls:transactions": "tsx scripts/test-rls-transactions.mts",
     "test:rls:prices": "tsx scripts/test-rls-prices.mts",
     "test:rls:reports": "tsx scripts/test-rls-reports.mts",
+    "test:rls:company": "tsx scripts/test-rls-company.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },
   "dependencies": {

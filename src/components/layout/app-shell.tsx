@@ -8,6 +8,7 @@ import {
   ChevronsUpDown,
   FileText,
   HardHat,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -70,6 +71,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
         { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: true },
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: true },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: true },
+        { href: "/sirket", label: "Şirket Kasası", icon: Landmark, enabled: true },
       ] satisfies NavItem[],
     };
   }
@@ -80,6 +82,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
         { href: "/admin", label: "Genel Bakış", icon: LayoutDashboard, enabled: true, exact: true },
         { href: "/admin/ortaklar", label: "Ortaklar", icon: Users, enabled: true },
         { href: "/admin/santiyeler", label: "Şantiyeler", icon: Building2, enabled: true },
+        { href: "/admin/sirketler", label: "Şirket Kasaları", icon: Landmark, enabled: true },
         { href: "/sites", label: "Panele Git", icon: HardHat, enabled: true, exact: true },
       ] satisfies NavItem[],
       more: [] as NavItem[],
@@ -87,7 +90,10 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
   }
 
   return {
-    primary: [{ href: "/sites", label: "Şantiyeler", icon: Building2, enabled: true, exact: true }] satisfies NavItem[],
+    primary: [
+      { href: "/sites", label: "Şantiyeler", icon: Building2, enabled: true, exact: true },
+      { href: "/sirket", label: "Şirket Kasası", icon: Landmark, enabled: true },
+    ] satisfies NavItem[],
     more: [] as NavItem[],
   };
 }
