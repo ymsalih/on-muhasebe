@@ -19,6 +19,7 @@
     "test:rls:reports": "tsx scripts/test-rls-reports.mts",
     "test:rls:company": "tsx scripts/test-rls-company.mts",
     "test:rls:materials": "tsx scripts/test-rls-materials.mts",
+    "test:rls:billing": "tsx scripts/test-rls-billing.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },
   "dependencies": {
