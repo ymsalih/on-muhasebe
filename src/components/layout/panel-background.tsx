@@ -9,7 +9,7 @@ export function PanelBackground() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-background">
       <Image src={panelBg} alt="" fill priority sizes="100vw" quality={80} placeholder="blur" className="object-cover object-center" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/35 to-black/55" />
     </div>
   );
 }

@@ -19,7 +19,7 @@ const WEEKDAYS = ["Pz", "Pt", "Sa", "Ça", "Pe", "Cu", "Ct"];
 const CODE_STYLE: Record<"İ" | "R" | "G", { cls: string; label: string }> = {
   İ: { cls: "text-sky-700 dark:text-sky-400", label: "İzinli" },
   R: { cls: "text-orange-700 dark:text-orange-400", label: "Raporlu" },
-  G: { cls: "text-violet-700 dark:text-violet-400", label: "Geçici görevde" },
+  G: { cls: "text-violet-700 dark:text-violet-300", label: "Geçici görevde" },
 };
 const UNDO_MS = 10_000;
 
@@ -203,7 +203,7 @@ export function EditableMatrix({
                         >
                           {on ? "✓" : ""}
                         </button>
-                        {note && <span title={note} className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500">●</span>}
+                        {note && <span title={note} className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500 dark:text-orange-400">●</span>}
                       </td>
                     );
                   }
@@ -223,7 +223,7 @@ export function EditableMatrix({
                   return (
                     <td key={d.iso} title={note ? `${label ? label + " · " : ""}Not: ${note}` : label || undefined} className={cellCls}>
                       <span className="flex h-11 min-w-11 items-center justify-center">{content}</span>
-                      {note && <span className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500">●</span>}
+                      {note && <span className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500 dark:text-orange-400">●</span>}
                     </td>
                   );
                 })}
@@ -249,12 +249,12 @@ export function EditableMatrix({
 
       <div className="space-y-1 text-xs text-muted-foreground">
         <p className="flex flex-wrap gap-x-4 gap-y-1">
-          <span><span className="font-bold text-emerald-600">✓</span> Geldi</span>
-          <span><span className="font-semibold text-sky-700">İ</span> İzinli</span>
-          <span><span className="font-semibold text-orange-700">R</span> Raporlu</span>
-          <span><span className="font-semibold text-violet-700">G</span> Geçici görevde</span>
+          <span><span className="font-bold text-emerald-600 dark:text-emerald-400">✓</span> Geldi</span>
+          <span><span className="font-semibold text-sky-700 dark:text-sky-400">İ</span> İzinli</span>
+          <span><span className="font-semibold text-orange-700 dark:text-orange-400">R</span> Raporlu</span>
+          <span><span className="font-semibold text-violet-700 dark:text-violet-300">G</span> Geçici görevde</span>
           <span>– Çalışma dışı</span>
-          <span><span className="text-orange-500">●</span> Notu var</span>
+          <span><span className="text-orange-500 dark:text-orange-400">●</span> Notu var</span>
         </p>
         {canWrite ? (
           <p>Bir güne dokunarak işareti ekleyebilir veya kaldırabilirsiniz; yanlışlıkla yaptığınız değişikliği “Geri al” ile düzeltin. Not eklemek için günlük ekranı kullanın.</p>

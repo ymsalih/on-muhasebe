@@ -222,7 +222,7 @@ export function MachineMatrix({
                         >
                           {on ? mark : ""}
                         </button>
-                        {entry?.note && <span title={entry.note} className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500">●</span>}
+                        {entry?.note && <span title={entry.note} className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500 dark:text-orange-400">●</span>}
                       </td>
                     );
                   }
@@ -231,7 +231,7 @@ export function MachineMatrix({
                       <span className="flex h-11 min-w-11 items-center justify-center">
                         {on ? <span className="font-bold text-emerald-600 dark:text-emerald-400">{mark}</span> : c.iso <= today && !workable ? <span className="text-muted-foreground/50">–</span> : null}
                       </span>
-                      {entry?.note && <span className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500">●</span>}
+                      {entry?.note && <span className="pointer-events-none absolute right-1 top-0.5 text-[10px] leading-none text-orange-500 dark:text-orange-400">●</span>}
                     </td>
                   );
                 })}
@@ -261,10 +261,10 @@ export function MachineMatrix({
 
       <div className="space-y-1 text-xs text-muted-foreground">
         <p className="flex flex-wrap gap-x-4 gap-y-1">
-          <span><span className="font-bold text-emerald-600">✓</span> Geldi</span>
-          <span><span className="font-bold text-emerald-600">8</span> Geldi, 8 saat çalıştı</span>
+          <span><span className="font-bold text-emerald-600 dark:text-emerald-400">✓</span> Geldi</span>
+          <span><span className="font-bold text-emerald-600 dark:text-emerald-400">8</span> Geldi, 8 saat çalıştı</span>
           <span>– Çalışma dışı</span>
-          <span><span className="text-orange-500">●</span> Notu var</span>
+          <span><span className="text-orange-500 dark:text-orange-400">●</span> Notu var</span>
         </p>
         <p>{canWrite ? "Bir güne dokunarak işareti ekleyebilir veya kaldırabilirsiniz. Saat ve not eklemek için günlük ekranı kullanın (gün numarasına dokunun)." : "Bu ekranı yalnızca görüntüleyebilirsiniz."}</p>
       </div>
