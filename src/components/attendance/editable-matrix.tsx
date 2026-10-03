@@ -160,7 +160,7 @@ export function EditableMatrix({
                       <span className="text-[10px] font-normal text-muted-foreground">{WEEKDAYS[d.dow]}</span>
                     </Link>
                   ) : (
-                    <span className="flex h-11 min-w-11 flex-col items-center justify-center leading-tight text-muted-foreground/60">
+                    <span className="flex h-11 min-w-11 flex-col items-center justify-center leading-tight text-muted-foreground">
                       <span>{d.n}</span>
                       <span className="text-[10px] font-normal">{WEEKDAYS[d.dow]}</span>
                     </span>
@@ -217,7 +217,7 @@ export function EditableMatrix({
                     content = <span className={cn("text-xs font-semibold", CODE_STYLE[code].cls)}>{code}</span>;
                     label = CODE_STYLE[code].label;
                   } else if (code === "-") {
-                    content = <span className="text-muted-foreground/50">–</span>;
+                    content = <span className="text-muted-foreground/70">–</span>;
                     label = "Çalışma dışı";
                   }
                   return (

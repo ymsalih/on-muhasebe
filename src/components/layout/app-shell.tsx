@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/brand-logo";
+import { PanelBackground } from "@/components/layout/panel-background";
 import { signOut } from "@/lib/auth/actions";
 import {
   DropdownMenu,
@@ -152,7 +153,7 @@ function NavLink({
       className={cn(
         base,
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-        layout !== "tab" && active && "bg-muted",
+        layout !== "tab" && active && "bg-primary/15 ring-1 ring-primary/30",
         layout !== "tab" && !active && "hover:bg-muted/60",
         collapsed && "justify-center px-0",
       )}
@@ -223,11 +224,12 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
   const allItems = [...nav.primary, ...nav.more];
 
   return (
-    <div className="flex min-h-dvh bg-muted/30">
+    <div className="flex min-h-dvh">
+      <PanelBackground />
       {/* Masaüstü: daraltılabilir sidebar (≥ 768px) */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-background transition-[width] md:flex",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-white/10 bg-background/65 backdrop-blur-xl transition-[width] md:flex",
           collapsed ? "w-[4.5rem]" : "w-64",
         )}
       >
@@ -276,7 +278,7 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Üst çubuk: şantiye bağlamı her zaman görünür */}
-        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/60 px-4 backdrop-blur-xl md:px-6">
           {/* Telefonda kenar çubuğu yok: logo üst çubukta (masaüstünde kenar çubuğunda) */}
           <BrandMark className="h-10 w-12 rounded-lg p-1 ring-1 ring-border md:hidden" imgClassName="h-full w-full object-contain" sizes="48px" />
           {site ? (
@@ -292,7 +294,7 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
       {/* Mobil: alt sabit navigasyon (< 768px), en fazla 5 sekme */}
       <nav
         aria-label="Ana menü"
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-white/10 bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       >
         {nav.primary.map((item) => (
           <NavLink key={item.href} item={item} active={isActive(pathname, item)} layout="tab" />

@@ -12,12 +12,12 @@ export function CategoryPie({ rows, type }: { rows: PieRow[]; type: "income" | "
     <div className="h-56 w-full" role="img" aria-label={type === "income" ? "Gelir kategorileri halka grafiği" : "Gider kategorileri halka grafiği"}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={rows} dataKey="total" nameKey="name" innerRadius="55%" outerRadius="90%" paddingAngle={1} isAnimationActive={false}>
+          <Pie data={rows} dataKey="total" nameKey="name" innerRadius="55%" outerRadius="90%" paddingAngle={1} stroke="#1c212b" isAnimationActive={false}>
             {rows.map((_, i) => (
               <Cell key={i} fill={pieColor(type, i)} />
             ))}
           </Pie>
-          <Tooltip formatter={(v) => formatCurrency(Number(v))} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+          <Tooltip formatter={(v) => formatCurrency(Number(v))} contentStyle={{ borderRadius: 8, fontSize: 12, background: "#1c212b", border: "1px solid rgba(255,255,255,0.15)", color: "#f1f5f9" }} labelStyle={{ color: "#f1f5f9" }} itemStyle={{ color: "#f1f5f9" }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

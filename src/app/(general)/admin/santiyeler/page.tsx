@@ -42,7 +42,7 @@ export default async function AdminSitesPage() {
           <p className="text-sm text-muted-foreground">Bir ortak kendi panelinden şantiye oluşturduğunda burada görünür.</p>
         </div>
       ) : (
-        <ul className="grid gap-3 md:max-w-3xl">
+        <ul className="grid grid-cols-1 gap-3 md:max-w-3xl">
           {sites.map((site) => {
             const owner = site.site_members.find((m) => m.role === "owner")?.users?.full_name;
             const count = site.site_members.length;

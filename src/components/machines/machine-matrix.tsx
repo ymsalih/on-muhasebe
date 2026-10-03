@@ -175,7 +175,7 @@ export function MachineMatrix({
                       <span className="text-[10px] font-normal text-muted-foreground">{WEEKDAYS[c.dow]}</span>
                     </Link>
                   ) : (
-                    <span className="flex h-11 min-w-11 flex-col items-center justify-center leading-tight text-muted-foreground/60">
+                    <span className="flex h-11 min-w-11 flex-col items-center justify-center leading-tight text-muted-foreground">
                       <span>{c.n}</span>
                       <span className="text-[10px] font-normal">{WEEKDAYS[c.dow]}</span>
                     </span>

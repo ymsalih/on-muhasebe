@@ -215,7 +215,7 @@ export function TransactionSheet({
                   key={t}
                   className={cn(
                     "flex min-h-12 cursor-pointer items-center justify-center rounded-lg border text-sm font-medium has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
-                    type === t && (t === "income" ? "border-emerald-600 bg-emerald-600 text-white" : "border-orange-600 bg-orange-600 text-white"),
+                    type === t && (t === "income" ? "border-emerald-700 bg-emerald-700 text-white" : "border-orange-700 bg-orange-700 text-white"),
                   )}
                 >
                   <input type="radio" value={t} className="sr-only" {...register("type")} />

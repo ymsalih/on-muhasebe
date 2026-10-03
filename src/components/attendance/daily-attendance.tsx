@@ -365,7 +365,7 @@ export function DailyAttendance({
                               <span
                                 role="img"
                                 aria-label="Geldi"
-                                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"
+                                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white"
                               >
                                 <Check className="size-4" aria-hidden />
                               </span>

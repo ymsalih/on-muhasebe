@@ -84,37 +84,39 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Premium koyu tema: arduvaz tonlu cam yüzeyler, amber vurgu (logo ve giriş ekranıyla uyumlu). Yüzeyler yarı saydamdır;
+     arkada panelarkaplan görseli görünür, yazı kontrastı yüksek tutulur. */
+  --background: oklch(0.2 0.012 260);
+  --foreground: oklch(0.97 0.005 260);
+  --card: oklch(0.22 0.014 260 / 0.82);
+  --card-foreground: oklch(0.97 0.005 260);
+  --popover: oklch(0.25 0.014 260 / 0.97);
+  --popover-foreground: oklch(0.97 0.005 260);
+  --primary: oklch(0.82 0.17 80);
+  --primary-foreground: oklch(0.2 0.03 80);
+  --secondary: oklch(0.32 0.014 260 / 0.7);
+  --secondary-foreground: oklch(0.97 0.005 260);
+  --muted: oklch(0.34 0.014 260 / 0.5);
+  --muted-foreground: oklch(0.86 0.01 260);
+  --accent: oklch(0.34 0.014 260 / 0.6);
+  --accent-foreground: oklch(0.97 0.005 260);
+  --destructive: oklch(0.72 0.18 22);
+  --border: oklch(1 0 0 / 13%);
+  --input: oklch(1 0 0 / 20%);
+  --ring: oklch(0.82 0.17 80 / 0.6);
+  --chart-1: oklch(0.82 0.17 80);
+  --chart-2: oklch(0.7 0.12 160);
+  --chart-3: oklch(0.7 0.14 25);
+  --chart-4: oklch(0.7 0.1 250);
+  --chart-5: oklch(0.6 0.02 260);
+  --sidebar: oklch(0.2 0.012 260 / 0.7);
+  --sidebar-foreground: oklch(0.97 0.005 260);
+  --sidebar-primary: oklch(0.82 0.17 80);
+  --sidebar-primary-foreground: oklch(0.2 0.03 80);
+  --sidebar-accent: oklch(0.34 0.014 260 / 0.6);
+  --sidebar-accent-foreground: oklch(0.97 0.005 260);
+  --sidebar-border: oklch(1 0 0 / 13%);
+  --sidebar-ring: oklch(0.82 0.17 80 / 0.6);
 }
 
 @layer base {
@@ -126,5 +128,15 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Koyu tema: yerel tarih/seçim denetimleri de koyu çizilir; kartlara derinlik (üst ışık çizgisi + yumuşak gölge) verilir. */
+html.dark {
+  color-scheme: dark;
+}
+@layer components {
+  .dark .bg-card {
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 7%), 0 10px 30px -14px oklch(0 0 0 / 0.55);
   }
 }

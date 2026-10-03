@@ -139,7 +139,7 @@ export function CompanyLedger({ rows, hasMore, canWrite, today }: { rows: Ledger
                     onClick={() => setType(t)}
                     className={cn(
                       "flex min-h-12 items-center justify-center rounded-lg border text-sm font-medium",
-                      type === t && (t === "income" ? "border-emerald-600 bg-emerald-600 text-white" : "border-orange-600 bg-orange-600 text-white"),
+                      type === t && (t === "income" ? "border-emerald-700 bg-emerald-700 text-white" : "border-orange-700 bg-orange-700 text-white"),
                     )}
                   >
                     {COMPANY_ENTRY_TYPE_LABELS[t]}

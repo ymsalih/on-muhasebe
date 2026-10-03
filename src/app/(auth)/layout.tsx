@@ -7,10 +7,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Arkaplan: orijinal 6000×4000 görsel; Next.js ekran genişliğine uygun çözünürlükte (retina dahil) sunar, oran bozulmadan kaplar. */}
       <Image src={arkaplan} alt="" fill priority sizes="100vw" quality={90} placeholder="blur" className="-z-20 object-cover object-[35%_center]" />
       {/* Okunabilirlik için hafif koyu katman */}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-black/50 via-black/35 to-black/55" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-black/55 via-black/40 to-black/60" />
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-balance text-xl font-semibold uppercase tracking-wide text-white drop-shadow-md">ÖZN YOL YAPIM İNŞAAT &amp; İŞ MAKİNELERİ</h1>
+          <h1 className="text-balance text-xl font-bold uppercase tracking-wide text-white drop-shadow-md">ÖZN YOL YAPIM İNŞAAT &amp; İŞ MAKİNELERİ</h1>
         </div>
         {/* Şeffaf (buzlu cam) kart: arkaplan görünür kalır; yazılar, alanlar ve düğme koyu zeminde okunaklı olacak şekilde yalnızca bu kartın içinde yeniden renklendirilir. */}
         <div

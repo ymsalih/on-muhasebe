@@ -190,7 +190,7 @@ export function MachineDaily({
                     onClick={() => toggle(m)}
                     className={cn(
                       "flex size-12 shrink-0 items-center justify-center rounded-lg border-2 text-lg font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      on ? "border-emerald-600 bg-emerald-600 text-white" : "border-input hover:bg-muted",
+                      on ? "border-emerald-700 bg-emerald-700 text-white" : "border-input hover:bg-muted",
                       busy.has(m.id) && "opacity-50",
                     )}
                   >

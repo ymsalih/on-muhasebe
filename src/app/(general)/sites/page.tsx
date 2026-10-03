@@ -70,7 +70,7 @@ export default async function SitesPage() {
       <p className="text-sm text-muted-foreground">
         {isAdmin ? "Tüm şantiyeler (salt görüntüleme)." : "Çalışmak istediğiniz şantiyeyi seçin."}
       </p>
-      <ul className="grid gap-3 md:max-w-2xl">
+      <ul className="grid grid-cols-1 gap-3 md:max-w-2xl">
         {sites.map((site) => (
           <li key={site.id}>
             <Link
