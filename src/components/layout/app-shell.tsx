@@ -189,7 +189,7 @@ function SiteChip({ site, sites }: { site: SiteRef; sites: SiteRef[] }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex min-h-11 max-w-full items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label={`Aktif şantiye: ${site.name}. Değiştirmek için dokunun`}
       >
         <HardHat className="size-4 shrink-0 text-primary" aria-hidden />
@@ -277,6 +277,8 @@ export function AppShell({ user, site, sites, children }: AppShellProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Üst çubuk: şantiye bağlamı her zaman görünür */}
         <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+          {/* Telefonda kenar çubuğu yok: logo üst çubukta (masaüstünde kenar çubuğunda) */}
+          <BrandMark className="h-10 w-12 rounded-lg p-1 ring-1 ring-border md:hidden" imgClassName="h-full w-full object-contain" sizes="48px" />
           {site ? (
             <SiteChip site={site} sites={sites} />
           ) : (
