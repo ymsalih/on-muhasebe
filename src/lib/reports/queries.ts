@@ -4,19 +4,25 @@ import { getCashSummary, listCategories } from "@/lib/cash/queries";
 import { listPartyBalances } from "@/lib/parties/queries";
 import { addDays, daysBetween } from "@/lib/personnel/status";
 import type { PartyCategory } from "@/lib/goods/schemas";
+import { getBillingReport, getFuelReport, getMachineReport, getMaterialReport, getOverview, type BillingData, type FuelData, type MachineData, type MaterialData, type OverviewData } from "@/lib/reports/extra-queries";
 
-export const REPORT_TABS = ["trend", "kategori", "cari", "personel"] as const;
+export const REPORT_TABS = ["ozet", "trend", "kategori", "cari", "personel", "malzeme", "yakit", "makine", "hakedis"] as const;
 export type ReportTab = (typeof REPORT_TABS)[number];
 export const REPORT_TAB_LABELS: Record<ReportTab, string> = {
+  ozet: "Genel Özet",
   trend: "Genel Trend",
   kategori: "Kategori Dağılımı",
   cari: "Cari Bazlı",
   personel: "Personel Bazlı",
+  malzeme: "Malzeme",
+  yakit: "Yakıt",
+  makine: "Makine",
+  hakedis: "Hakediş / Fatura",
 };
 
-/** Adres parametresinden sekme; geçersizse Genel Trend. */
+/** Adres parametresinden sekme; geçersizse Genel Özet. */
 export function resolveTab(param: string | undefined): ReportTab {
-  return (REPORT_TABS.find((t) => t === param) ?? "trend") as ReportTab;
+  return (REPORT_TABS.find((t) => t === param) ?? "ozet") as ReportTab;
 }
 
 /** Bu günden uzun aralıklar aylık kırılımda gösterilir (grafik okunaklı kalsın). */
@@ -126,10 +132,20 @@ export async function getPersonnelReport(siteId: number, from: string, to: strin
   return { tab: "personel", rows };
 }
 
-export type ReportData = TrendData | CategoryData | PartyData | PersonnelData;
+export type ReportData = OverviewData | TrendData | CategoryData | PartyData | PersonnelData | MaterialData | FuelData | MachineData | BillingData;
 
 export async function loadReport(siteId: number, tab: ReportTab, from: string, to: string): Promise<ReportData> {
   switch (tab) {
+    case "ozet":
+      return getOverview(siteId, from, to);
+    case "malzeme":
+      return getMaterialReport(siteId, from, to);
+    case "yakit":
+      return getFuelReport(siteId, from, to);
+    case "makine":
+      return getMachineReport(siteId, from, to);
+    case "hakedis":
+      return getBillingReport(siteId, from, to);
     case "trend":
       return getTrend(siteId, from, to);
     case "kategori":

@@ -77,8 +77,6 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
       ] satisfies NavItem[],
       // "Daha Fazla" içine toplanan ekranlar
       more: [
-        { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
-        { href: `${base}/ayarlar`, label: "Şantiye Ayarları", icon: Settings, enabled: true },
         { href: `${base}/irsaliye`, label: "İrsaliye", icon: FileText, enabled: true },
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: true },
         { href: `${base}/malzeme`, label: "Malzeme", icon: Package, enabled: true },
@@ -87,6 +85,9 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
         { href: `${base}/yakit`, label: "Yakıt Takibi", icon: Fuel, enabled: true },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: true },
         { href: "/sirket", label: "Şirket Kasası", icon: Landmark, enabled: true },
+        // Yönetim ekranları en altta: günlük işe yarayanlar üstte
+        { href: `${base}/ortaklar`, label: "Şantiye Ortakları", icon: UserPlus, enabled: true },
+        { href: `${base}/ayarlar`, label: "Şantiye Ayarları", icon: Settings, enabled: true },
       ] satisfies NavItem[],
     };
   }

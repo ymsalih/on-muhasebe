@@ -7,8 +7,23 @@ import type { ReportTable } from "@/lib/reports/table";
 
 /** Excel: başlık + dönem, kalın başlık satırı, para sütunları ₺ biçiminde (sayı olarak kalır, toplanabilir). */
 export async function toXlsx(table: ReportTable, sheetName: string): Promise<Buffer> {
+  return toXlsxWorkbook([{ ...table, sheet: sheetName }]);
+}
+
+/** Çok sayfalı Excel: her ReportTable bir sayfa olur (sayfa adı `sheet`, en çok 31 karakter). */
+export async function toXlsxWorkbook(tables: ReportTable[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet(sheetName.slice(0, 31));
+  const used = new Set<string>();
+  for (const table of tables) {
+    let name = (table.sheet ?? table.title).replace(/[\\/?*[\]:]/g, " ").slice(0, 31) || "Sayfa";
+    for (let i = 2; used.has(name.toLowerCase()); i++) name = `${name.slice(0, 28)} ${i}`;
+    used.add(name.toLowerCase());
+    fillSheet(wb.addWorksheet(name), table);
+  }
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+function fillSheet(ws: ExcelJS.Worksheet, table: ReportTable) {
 
   ws.addRow([table.title]).font = { bold: true, size: 14 };
   ws.addRow([table.subtitle]).font = { color: { argb: "FF666666" } };
@@ -36,8 +51,7 @@ export async function toXlsx(table: ReportTable, sheetName: string): Promise<Buf
     ws.getColumn(i + 1).width = Math.min(48, Math.max(12, longest + 4));
   });
   ws.getRow(4).height = 20;
-
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  ws.views = [{ state: "frozen", ySplit: 4 }];
 }
 
 const FONT_DIR = path.join(process.cwd(), "node_modules", "pdfmake", "build", "fonts", "Roboto");

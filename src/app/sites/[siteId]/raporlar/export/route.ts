@@ -3,7 +3,8 @@ import { getAuthUserId } from "@/lib/auth/session";
 import { resolveRange } from "@/lib/cash/range";
 import { todayInIstanbul } from "@/lib/personnel/status";
 import { loadReport, resolveTab } from "@/lib/reports/queries";
-import { toPdf, toXlsx } from "@/lib/reports/export-files";
+import { toPdf, toXlsx, toXlsxWorkbook } from "@/lib/reports/export-files";
+import { loadFullData } from "@/lib/reports/full-data";
 import { toTable } from "@/lib/reports/table";
 import { getAccessibleSites } from "@/lib/sites/queries";
 
@@ -31,7 +32,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ site
   const table = toTable(data, site.name, range.from, range.to);
   const filename = `rapor-${tab}-${range.from}_${range.to}.${format}`;
 
-  const body = format === "pdf" ? await toPdf(table) : await toXlsx(table, table.title);
+  // Genel Özet'te Excel, şantiyenin dönemdeki TÜM kayıtlarını sayfa sayfa içerir (analiz için); PDF özet tablodur.
+  const body = format === "pdf" ? await toPdf(table) : tab === "ozet" ? await toXlsxWorkbook(await loadFullData(siteId, site.name, range.from, range.to)) : await toXlsx(table, table.title);
   return new NextResponse(new Uint8Array(body), {
     headers: {
       "Content-Type": format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
