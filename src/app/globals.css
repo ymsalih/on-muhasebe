@@ -129,6 +129,24 @@
   html {
     @apply font-sans;
   }
+  /* Yerel açılır listeler (<select>): seçim kutusu şeffaf/yarı saydam olduğu için tarayıcı seçenek listesini açık zeminde
+     çiziyor, beyaz yazı da görünmez oluyordu (ancak üzerine gelince belirginleşiyordu). Seçeneklere KATI koyu zemin ve açık yazı verilir. */
+  select,
+  option,
+  optgroup {
+    color-scheme: dark;
+  }
+  option,
+  optgroup {
+    background-color: oklch(0.25 0.014 260);
+    color: oklch(0.97 0.005 260);
+  }
+  option:checked {
+    background-color: oklch(0.36 0.03 260);
+  }
+  option:disabled {
+    color: oklch(0.7 0.01 260);
+  }
 }
 
 /* Koyu tema: yerel tarih/seçim denetimleri de koyu çizilir; kartlara derinlik (üst ışık çizgisi + yumuşak gölge) verilir. */
