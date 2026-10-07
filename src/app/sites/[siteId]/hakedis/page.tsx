@@ -49,10 +49,10 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
   const status = empty
     ? { tone: "border-border bg-card", icon: Scale, title: "Henüz kayıt yok", amount: null as string | null, text: "Hakediş ve fatura girdikçe eklemeniz gereken fatura tutarı burada hesaplanır.", amountTone: "" }
     : remaining > 0
-      ? { tone: "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20", icon: FileWarning, title: "Eklemeniz gereken fatura", amount: formatCurrency(remaining), text: "Toplam hakediş − toplam fatura. Bu tutarda fatura daha kesmeniz gerekiyor.", amountTone: "text-amber-700 dark:text-amber-400" }
+      ? { tone: "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20", icon: FileWarning, title: "Eklemeniz gereken fatura", amount: formatCurrency(remaining), text: "Toplam hakediş − toplam fatura (KDV hariç). Bu tutarda (KDV hariç) fatura daha kesmeniz gerekiyor.", amountTone: "text-amber-700 dark:text-amber-400" }
       : remaining === 0
-        ? { tone: "border-emerald-600/40 bg-emerald-50/60 dark:bg-emerald-950/20", icon: CheckCircle2, title: "Hakediş ve fatura denk", amount: formatCurrency(0), text: "Kestiğiniz faturaların toplamı hakediş toplamına eşit. Eklenecek fatura yok.", amountTone: "text-emerald-700 dark:text-emerald-400" }
-        : { tone: "border-red-600/40 bg-red-50/60 dark:bg-red-950/20", icon: TriangleAlert, title: "Fatura hakedişi aşıyor", amount: formatCurrency(Math.abs(remaining)), text: "Kestiğiniz faturaların toplamı hakediş toplamından fazla. Fazla kesilen tutar yanda.", amountTone: "text-red-600 dark:text-red-400" };
+        ? { tone: "border-emerald-600/40 bg-emerald-50/60 dark:bg-emerald-950/20", icon: CheckCircle2, title: "Hakediş ve fatura denk", amount: formatCurrency(0), text: "Kestiğiniz faturaların KDV hariç toplamı hakediş toplamına eşit. Eklenecek fatura yok.", amountTone: "text-emerald-700 dark:text-emerald-400" }
+        : { tone: "border-red-600/40 bg-red-50/60 dark:bg-red-950/20", icon: TriangleAlert, title: "Fatura hakedişi aşıyor", amount: formatCurrency(Math.abs(remaining)), text: "Kestiğiniz faturaların KDV hariç toplamı hakediş toplamından fazla. Fazla kesilen tutar yanda.", amountTone: "text-red-600 dark:text-red-400" };
   const StatusIcon = status.icon;
 
   return (
@@ -115,10 +115,23 @@ export default async function BillingPage({ params, searchParams }: { params: Pr
                 <dd className="font-semibold tabular-nums">{formatCurrency(summary.progressTotal)}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Toplam fatura</dt>
+                <dt className="text-muted-foreground">Toplam fatura (KDV hariç)</dt>
                 <dd className="font-semibold tabular-nums">{formatCurrency(summary.invoiceTotal)}</dd>
               </div>
+              {summary.invoiceKdv > 0 && (
+                <>
+                  <div>
+                    <dt className="text-muted-foreground">Faturalardaki KDV</dt>
+                    <dd className="font-semibold tabular-nums" data-testid="status-kdv">{formatCurrency(summary.invoiceKdv)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Toplam fatura (KDV dahil)</dt>
+                    <dd className="font-semibold tabular-nums" data-testid="status-gross">{formatCurrency(summary.invoiceGross)}</dd>
+                  </div>
+                </>
+              )}
             </dl>
+            <p className="text-xs text-muted-foreground">Kalan, KDV hariç tutarlarla hesaplanır: hakediş tutarını KDV hariç girin.</p>
           </section>
         </>
       )}

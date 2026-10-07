@@ -304,7 +304,8 @@ export default async function ReportsPage({
               linkLabel="Hakediş raporu"
               items={[
                 { label: "Dönem hakediş", value: formatCurrency(data.n.progressTotal), tone: "text-emerald-700 dark:text-emerald-400" },
-                { label: "Dönem fatura", value: formatCurrency(data.n.invoiceTotal), tone: "text-orange-700 dark:text-orange-400" },
+                { label: "Dönem fatura (KDV hariç)", value: formatCurrency(data.n.invoiceTotal), tone: "text-orange-700 dark:text-orange-400" },
+                { label: "Dönem faturalardaki KDV", value: formatCurrency(data.n.invoiceKdv) },
                 { label: "Kalan (tüm zamanlar)", value: formatCurrency(data.n.progressAll - data.n.invoiceAll), tone: data.n.progressAll - data.n.invoiceAll >= 0 ? "" : "text-red-600 dark:text-red-400" },
               ]}
             />
@@ -416,7 +417,7 @@ export default async function ReportsPage({
         <section className="space-y-4" aria-label="Hakediş ve fatura">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <SummaryCard label="Dönem hakediş" value={data.progress} icon={TrendingUp} tone="text-emerald-700 dark:text-emerald-400" />
-            <SummaryCard label="Dönem fatura" value={data.invoices} icon={TrendingDown} tone="text-orange-700 dark:text-orange-400" />
+            <SummaryCard label="Dönem fatura (KDV hariç)" value={data.invoices} icon={TrendingDown} tone="text-orange-700 dark:text-orange-400" />
             <SummaryCard label="Dönem farkı" value={data.progress - data.invoices} icon={Scale} tone="" />
             <SummaryCard
               label="Kalan (tüm zamanlar)"
@@ -425,7 +426,10 @@ export default async function ReportsPage({
               tone={data.progressAll - data.invoicesAll >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
             />
           </div>
-          <p className="text-xs text-muted-foreground">Kalan = toplam hakediş − toplam fatura (tüm zamanlar). Ay bazında satırlar seçili döneme aittir.</p>
+          <p className="text-xs text-muted-foreground">
+            Kalan = toplam hakediş − toplam fatura, KDV hariç tutarlarla (tüm zamanlar). Ay bazında satırlar seçili döneme aittir.
+            {data.kdv > 0 && <> Dönem faturalarındaki KDV: <span className="font-semibold text-foreground" data-testid="report-kdv">{formatCurrency(data.kdv)}</span> (KDV dahil toplam {formatCurrency(data.invoices + data.kdv)}).</>}
+          </p>
           {data.months.length === 0 && data.owners.length === 0 ? (
             <Empty text="Bu dönemde hakediş veya fatura yok." />
           ) : (
@@ -439,7 +443,7 @@ export default async function ReportsPage({
                         key={`${r.ownerId}-${r.month}`}
                         href={`/sites/${siteId}/hakedis`}
                         title={periodLabel(r.month, "month")}
-                        lines={[`Hakediş ${formatCurrency(r.progress)} · Fatura ${formatCurrency(r.invoices)}`, isAdmin ? `Ortak: ${r.ownerName}` : null]}
+                        lines={[`Hakediş ${formatCurrency(r.progress)} · Fatura ${formatCurrency(r.invoices)}${r.kdv > 0 ? ` · KDV ${formatCurrency(r.kdv)}` : ""}`, isAdmin ? `Ortak: ${r.ownerName}` : null]}
                         trailing={
                           <span className="block text-right text-xs text-muted-foreground">
                             Fark

@@ -90,8 +90,8 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
       supabase.from("progress_payments").select("payment_date, description, amount, users(full_name)")
         .eq("site_id", siteId).gte("payment_date", from).lte("payment_date", to).order("payment_date").order("id").range(a, b) as unknown as PageResult<never>,
     ),
-    fetchAll<{ invoice_date: string; invoice_no: string | null; invoice_type: InvoiceType; description: string; amount: number | string; users: UserRef }>((a, b) =>
-      supabase.from("invoices").select("invoice_date, invoice_no, invoice_type, description, amount, users(full_name)")
+    fetchAll<{ invoice_date: string; invoice_no: string | null; invoice_type: InvoiceType; description: string; amount: number | string; kdv_rate: number | string; kdv_amount: number | string; total_with_kdv: number | string; users: UserRef }>((a, b) =>
+      supabase.from("invoices").select("invoice_date, invoice_no, invoice_type, description, amount, kdv_rate, kdv_amount, total_with_kdv, users(full_name)")
         .eq("site_id", siteId).gte("invoice_date", from).lte("invoice_date", to).order("invoice_date").order("id").range(a, b) as unknown as PageResult<never>,
     ),
   ]);
@@ -153,8 +153,11 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
   const progRows = progress.map((r) => [date(r.payment_date), txt(r.users?.full_name), txt(r.description), Number(r.amount)]);
   sheets.push(mk("Hakediş", ["Tarih", "Ortak", "Açıklama", "Tutar"], progRows, { money: [3], totals: ["Toplam", "", "", sum(progRows, 3)] }));
 
-  const invRows = invoices.map((r) => [date(r.invoice_date), txt(r.users?.full_name), txt(r.invoice_no), INVOICE_TYPE_LABELS[r.invoice_type], r.description, Number(r.amount)]);
-  sheets.push(mk("Fatura", ["Tarih", "Ortak", "Fatura no", "Tür", "Açıklama", "Tutar"], invRows, { money: [5], totals: ["Toplam", "", "", "", "", sum(invRows, 5)] }));
+  const invRows = invoices.map((r) => [date(r.invoice_date), txt(r.users?.full_name), txt(r.invoice_no), INVOICE_TYPE_LABELS[r.invoice_type], r.description, Number(r.amount), Number(r.kdv_rate), Number(r.kdv_amount), Number(r.total_with_kdv)]);
+  sheets.push(mk("Fatura", ["Tarih", "Ortak", "Fatura no", "Tür", "Açıklama", "Tutar (KDV hariç)", "KDV oranı (%)", "KDV", "Toplam (KDV dahil)"], invRows, {
+    money: [5, 7, 8],
+    totals: ["Toplam", "", "", "", "", sum(invRows, 5), "", sum(invRows, 7), sum(invRows, 8)],
+  }));
 
   return sheets;
 }

@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { Check, FilePlus2, Landmark, Loader2, Plus, Receipt, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Field, FormError } from "@/components/auth/field";
 import { DataRow } from "@/components/data-row";
 import { deleteInvoice, deleteProgressPayment, saveInvoice, saveProgressPayment } from "@/lib/billing/actions";
+import { KDV_MODE_LABELS, KDV_PRESETS, computeKdv, rateLabel, type KdvMode } from "@/lib/billing/kdv";
 import { INVOICE_TYPES, INVOICE_TYPE_LABELS, invoiceSchema, progressPaymentSchema, type InvoiceType } from "@/lib/billing/schemas";
 import type { BillingSummary, InvoiceRow, PaymentRow } from "@/lib/billing/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const selectClass =
   "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
@@ -61,6 +64,12 @@ export function BillingBoard({
   const [iType, setIType] = useState<InvoiceType | "">("");
   const [iDesc, setIDesc] = useState("");
   const [iAmount, setIAmount] = useState("");
+  // KDV: hızlı oran ("0" = KDV yok, "1", "10", "20") ya da "diger" (özel oran); tutar KDV hariç mi dahil mi girildi
+  const [iKdv, setIKdv] = useState<string>("0");
+  const [iKdvCustom, setIKdvCustom] = useState("");
+  const [iMode, setIMode] = useState<KdvMode>("net");
+  const iRateText = iKdv === "diger" ? iKdvCustom : iKdv;
+  const calc = computeKdv(iAmount, iRateText, iMode);
 
   const pickSide = () => setSide(window.matchMedia("(min-width: 768px)").matches ? "right" : "bottom");
 
@@ -80,7 +89,12 @@ export function BillingBoard({
     setINo(r?.invoiceNo ?? "");
     setIType(r?.type ?? "");
     setIDesc(r?.description ?? "");
+    // Düzenlemede kayıtlı KDV HARİÇ tutar ve oran gösterilir
     setIAmount(r ? amountText(r.amount) : "");
+    const preset = r ? (KDV_PRESETS as readonly number[]).includes(r.kdvRate) : true;
+    setIKdv(r ? (preset ? String(r.kdvRate) : "diger") : "0");
+    setIKdvCustom(r && !preset ? amountText(r.kdvRate) : "");
+    setIMode("net");
     setError(null);
     pickSide();
     setInvOpen(true);
@@ -110,7 +124,7 @@ export function BillingBoard({
 
   function onSaveInvoice() {
     setError(null);
-    const parsed = invoiceSchema.safeParse({ date: iDate, invoiceNo: iNo, type: iType, description: iDesc, amount: iAmount });
+    const parsed = invoiceSchema.safeParse({ date: iDate, invoiceNo: iNo, type: iType, description: iDesc, amount: iAmount, kdvRate: iRateText, amountMode: iMode });
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Girilen bilgiler geçersiz.");
     void run(() => saveInvoice(siteId, editInv?.id ?? null, parsed.data), () => setInvOpen(false));
   }
@@ -170,10 +184,16 @@ export function BillingBoard({
               <Receipt className="size-4 text-muted-foreground" aria-hidden />
               Kesilen Faturalar
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">Toplam fatura</p>
+            <p className="mt-1 text-xs text-muted-foreground">Toplam fatura (KDV hariç)</p>
             <p className="text-xl font-semibold tabular-nums text-orange-700 dark:text-orange-400" data-testid="invoice-total">
               {formatCurrency(summary.invoiceTotal)}
             </p>
+            {summary.invoiceKdv > 0 && (
+              <p className="mt-0.5 text-xs text-muted-foreground" data-testid="invoice-kdv-line">
+                KDV <span className="font-semibold tabular-nums text-foreground" data-testid="invoice-kdv">{formatCurrency(summary.invoiceKdv)}</span> · KDV dahil{" "}
+                <span className="font-semibold tabular-nums text-foreground" data-testid="invoice-gross">{formatCurrency(summary.invoiceGross)}</span>
+              </p>
+            )}
           </div>
           {canWrite && (
             <Button type="button" className="h-11" onClick={() => openInvoice(null)}>
@@ -203,8 +223,16 @@ export function BillingBoard({
                 onClick={canWrite ? () => openInvoice(r) : undefined}
                 title={r.description}
                 badge={<span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{INVOICE_TYPE_LABELS[r.type]}</span>}
-                lines={[[formatDate(r.date), r.invoiceNo && `No: ${r.invoiceNo}`].filter(Boolean).join(" · ")]}
-                trailing={<span className="text-sm font-semibold tabular-nums text-orange-700 dark:text-orange-400">{formatCurrency(r.amount)}</span>}
+                lines={[
+                  [formatDate(r.date), r.invoiceNo && `No: ${r.invoiceNo}`].filter(Boolean).join(" · "),
+                  r.kdvRate > 0 ? `KDV hariç ${formatCurrency(r.amount)} · KDV ${rateLabel(r.kdvRate)} ${formatCurrency(r.kdvAmount)}` : "KDV yok",
+                ]}
+                trailing={
+                  <span className="block text-right">
+                    <span className="block text-sm font-semibold tabular-nums text-orange-700 dark:text-orange-400">{formatCurrency(r.total)}</span>
+                    <span className="block text-[11px] text-muted-foreground">{r.kdvRate > 0 ? "KDV dahil" : "toplam"}</span>
+                  </span>
+                }
               />
             ))}
           </div>
@@ -257,7 +285,7 @@ export function BillingBoard({
           <SheetHeader className="flex-row items-start justify-between gap-2 p-4 pb-0">
             <div className="space-y-1">
               <SheetTitle>{editInv ? "Faturayı Düzenle" : "Fatura Ekle"}</SheetTitle>
-              <SheetDescription>Kestiğiniz fatura toplam faturaya eklenir.</SheetDescription>
+              <SheetDescription>Kestiğiniz fatura toplam faturaya eklenir. KDV varsa oranı seçin; KDV otomatik hesaplanır.</SheetDescription>
             </div>
             <Button type="button" variant="ghost" className="size-11 shrink-0" aria-label="Kapat" onClick={() => setInvOpen(false)}>
               <X aria-hidden />
@@ -278,9 +306,59 @@ export function BillingBoard({
             <Field id="inv-desc" label="Açıklama">
               <Input id="inv-desc" autoComplete="off" placeholder="Ör. Nisan ayı beton malzemesi" className="h-11" value={iDesc} onChange={(e) => setIDesc(e.target.value)} />
             </Field>
-            <Field id="inv-amount" label="Fatura tutarı (₺)">
+            <Field id="inv-amount" label={`Fatura tutarı (₺) — ${KDV_MODE_LABELS[iMode]}`}>
               <Input id="inv-amount" inputMode="decimal" autoComplete="off" className="h-11 text-lg font-semibold" value={iAmount} onChange={(e) => setIAmount(e.target.value)} />
             </Field>
+            <div role="group" aria-label="Girdiğiniz tutar KDV hariç mi, dahil mi" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+              {(["net", "gross"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={iMode === m}
+                  data-testid={`kdv-mode-${m}`}
+                  onClick={() => setIMode(m)}
+                  className={cn("min-h-11 rounded-md px-3 text-sm font-medium", iMode === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Girdiğim tutar {KDV_MODE_LABELS[m]}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label>KDV oranı (varsa)</Label>
+              <div role="group" aria-label="KDV oranı" className="flex flex-wrap gap-2">
+                {[...KDV_PRESETS.map((p) => ({ key: String(p), label: p === 0 ? "KDV yok" : `%${p}` })), { key: "diger", label: "Diğer" }].map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    aria-pressed={iKdv === o.key}
+                    data-testid={`kdv-rate-${o.key}`}
+                    onClick={() => setIKdv(o.key)}
+                    className={cn("min-h-11 min-w-16 rounded-full border px-4 text-sm font-medium", iKdv === o.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {iKdv === "diger" && (
+                <Field id="inv-kdv-custom" label="KDV oranı (%)">
+                  <Input id="inv-kdv-custom" inputMode="decimal" autoComplete="off" placeholder="Ör. 8" className="h-11" value={iKdvCustom} onChange={(e) => setIKdvCustom(e.target.value)} />
+                </Field>
+              )}
+            </div>
+            <dl className="space-y-1.5 rounded-lg bg-muted px-3 py-3 text-sm" aria-live="polite" data-testid="kdv-calc">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">KDV hariç tutar</dt>
+                <dd className="font-semibold tabular-nums" data-testid="kdv-net">{calc ? formatCurrency(calc.net) : "—"}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">KDV{calc && calc.rate > 0 ? ` (${rateLabel(calc.rate)})` : ""}</dt>
+                <dd className="font-semibold tabular-nums" data-testid="kdv-amount">{calc ? formatCurrency(calc.kdv) : "—"}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-border pt-1.5">
+                <dt className="font-medium">Toplam (KDV dahil)</dt>
+                <dd className="text-lg font-semibold tabular-nums" data-testid="kdv-total">{calc ? formatCurrency(calc.total) : "—"}</dd>
+              </div>
+            </dl>
             <div className="grid grid-cols-2 gap-3">
               <Field id="inv-date" label="Fatura tarihi">
                 <Input id="inv-date" type="date" className="h-11" value={iDate} onChange={(e) => setIDate(e.target.value)} />

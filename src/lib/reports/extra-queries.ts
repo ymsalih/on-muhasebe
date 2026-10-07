@@ -32,6 +32,7 @@ export type OverviewNumbers = {
   machineHours: number;
   progressTotal: number;
   invoiceTotal: number;
+  invoiceKdv: number;
   progressAll: number;
   invoiceAll: number;
 };
@@ -70,6 +71,7 @@ export async function getOverview(siteId: number, from: string, to: string): Pro
       machineHours: n(d.machine_hours),
       progressTotal: n(d.progress_total),
       invoiceTotal: n(d.invoice_total),
+      invoiceKdv: n(d.invoice_kdv),
       progressAll: n(d.progress_all),
       invoiceAll: n(d.invoice_all),
     },
@@ -160,8 +162,9 @@ export async function getMachineReport(siteId: number, from: string, to: string)
 }
 
 // ---------------------------------------------------------------- Hakediş / fatura
-export type BillingMonthRow = { ownerId: string; ownerName: string; month: string; progress: number; invoices: number };
-export type BillingOwnerRow = { ownerId: string; ownerName: string; progress: number; invoices: number };
+/** `invoices` = KDV hariç fatura; `kdv` = faturalardaki KDV */
+export type BillingMonthRow = { ownerId: string; ownerName: string; month: string; progress: number; invoices: number; kdv: number };
+export type BillingOwnerRow = { ownerId: string; ownerName: string; progress: number; invoices: number; kdv: number };
 export type BillingData = {
   tab: "hakedis";
   months: BillingMonthRow[];
@@ -169,6 +172,8 @@ export type BillingData = {
   /** Dönemdeki toplamlar */
   progress: number;
   invoices: number;
+  /** Dönemdeki faturalarda toplam KDV */
+  kdv: number;
   /** Tüm zamanların toplamı ve kalanı (hakediş − fatura) */
   progressAll: number;
   invoicesAll: number;
@@ -182,18 +187,20 @@ export async function getBillingReport(siteId: number, from: string, to: string)
   ]);
   if (months.error) throw new Error("get_billing_report okunamadı");
   if (totals.error) throw new Error("get_billing_totals okunamadı");
-  const monthRows = ((months.data ?? []) as { owner_id: string; owner_name: string; month: string; progress: number | string; invoices: number | string }[]).map((r) => ({
+  const monthRows = ((months.data ?? []) as { owner_id: string; owner_name: string; month: string; progress: number | string; invoices: number | string; invoice_kdv: number | string }[]).map((r) => ({
     ownerId: r.owner_id,
     ownerName: r.owner_name,
     month: r.month,
     progress: n(r.progress),
     invoices: n(r.invoices),
+    kdv: n(r.invoice_kdv),
   }));
-  const owners = ((totals.data ?? []) as { owner_id: string; owner_name: string; progress: number | string; invoices: number | string }[]).map((r) => ({
+  const owners = ((totals.data ?? []) as { owner_id: string; owner_name: string; progress: number | string; invoices: number | string; invoice_kdv: number | string }[]).map((r) => ({
     ownerId: r.owner_id,
     ownerName: r.owner_name,
     progress: n(r.progress),
     invoices: n(r.invoices),
+    kdv: n(r.invoice_kdv),
   }));
   return {
     tab: "hakedis",
@@ -201,6 +208,7 @@ export async function getBillingReport(siteId: number, from: string, to: string)
     owners,
     progress: monthRows.reduce((s, r) => s + r.progress, 0),
     invoices: monthRows.reduce((s, r) => s + r.invoices, 0),
+    kdv: monthRows.reduce((s, r) => s + r.kdv, 0),
     progressAll: owners.reduce((s, r) => s + r.progress, 0),
     invoicesAll: owners.reduce((s, r) => s + r.invoices, 0),
   };

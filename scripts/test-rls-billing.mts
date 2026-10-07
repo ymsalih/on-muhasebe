@@ -170,6 +170,44 @@ try {
   check("ortak kendi faturasını silebilir", (await c.partner.from("invoices").delete().eq("id", i3.data!.id).select("id")).data?.length === 1);
   const after = await c.partner.rpc("get_billing_summary", { p_site_id: siteA, p_owner: ids.partner });
   check("fatura silince ortağın kalan faturası yeniden oluşur (20000 hakediş, 0 fatura)", !(after.data as { kind: string }[])?.some((r) => r.kind === "fatura") && Number((after.data as { kind: string; total: string }[])?.find((r) => r.kind === "hakedis")?.total) === 20000);
+
+  // ---------- KDV ----------
+  const kd = (over: Record<string, unknown>) => c.owner.from("invoices").insert(inv("owner", over)).select("id, amount, kdv_rate, kdv_amount, total_with_kdv").single();
+  const legacy = await c.owner.from("invoices").select("kdv_rate, kdv_amount, total_with_kdv, amount").eq("id", i1.data!.id).single();
+  check("eski/KDV'siz fatura: oran 0, KDV 0, toplam = tutar", Number(legacy.data?.kdv_rate) === 0 && Number(legacy.data?.kdv_amount) === 0 && Number(legacy.data?.total_with_kdv) === Number(legacy.data?.amount), JSON.stringify(legacy.data));
+  const k1 = await kd({ amount: 1000, kdv_rate: 20, kdv_amount: 200, description: "KDV %20 hariç" });
+  check("KDV hariç 1000 + %20 → KDV 200, toplam (KDV dahil) 1200 otomatik", !k1.error && Number(k1.data?.total_with_kdv) === 1200, JSON.stringify(k1.error ?? k1.data));
+  const k2 = await kd({ amount: 83.34, kdv_rate: 20, kdv_amount: 16.67, description: "KDV dahil 100,01" });
+  check("KDV dahil 100,01 @%20 → matrah 83,34 + KDV 16,67 = 100,01 (kuruşu kuruşuna)", !k2.error && Number(k2.data?.total_with_kdv) === 100.01, JSON.stringify(k2.error ?? k2.data));
+  const k3 = await kd({ amount: 500, kdv_rate: 18, kdv_amount: 90, description: "Eski oran %18" });
+  const k4 = await kd({ amount: 250, kdv_rate: 8, kdv_amount: 20, description: "Oran %8" });
+  const k5 = await kd({ amount: 1000, kdv_rate: 7.5, kdv_amount: 75, description: "Ondalıklı oran" });
+  check("özel oranlar kabul edilir (%18, %8, %7,5)", !k3.error && !k4.error && !k5.error, JSON.stringify([k3.error, k4.error, k5.error]));
+  check("tutarsız KDV reddedilir (100 @%20 için KDV 5)", !!(await kd({ amount: 100, kdv_rate: 20, kdv_amount: 5 })).error);
+  check("oran 0 iken KDV yazılamaz", !!(await kd({ amount: 100, kdv_rate: 0, kdv_amount: 20 })).error);
+  check("100'den büyük oran reddedilir", !!(await kd({ amount: 100, kdv_rate: 101, kdv_amount: 101 })).error);
+  check("negatif oran reddedilir", !!(await kd({ amount: 100, kdv_rate: -5, kdv_amount: 0 })).error);
+  check("negatif KDV tutarı reddedilir", !!(await kd({ amount: 100, kdv_rate: 0, kdv_amount: -1 })).error);
+  check("KDV dahil toplam elle yazılamaz (otomatik sütun)", !!(await kd({ amount: 100, total_with_kdv: 5 })).error);
+  check("sahip KDV'yi tutarlı biçimde güncelleyebilir (oran %10, KDV 100)", (await c.owner.from("invoices").update({ kdv_rate: 10, kdv_amount: 100 }).eq("id", k1.data!.id).select("id")).data?.length === 1 && Number((await c.owner.from("invoices").select("total_with_kdv").eq("id", k1.data!.id).single()).data?.total_with_kdv) === 1100);
+  check("tutarsız KDV güncellemesi reddedilir", !!(await c.owner.from("invoices").update({ kdv_amount: 1 }).eq("id", k1.data!.id)).error);
+  check("ortak, sahibin faturasının KDV'sini güncelleyemez", denied(await c.partner.from("invoices").update({ kdv_rate: 0, kdv_amount: 0 }).eq("id", k1.data!.id).select("id")));
+  await c.owner.from("invoices").update({ kdv_rate: 20, kdv_amount: 200 }).eq("id", k1.data!.id);
+
+  // özet: sahibin faturaları — KDV hariç toplam 8500,50 + 1000 + 83,34 + 500 + 250 + 1000 = 11333,84; KDV 200 + 16,67 + 90 + 20 + 75 = 401,67
+  const sumK = ((await c.owner.rpc("get_billing_summary", { p_site_id: siteA, p_owner: ids.owner })).data ?? []) as { kind: string; total: string; kdv: string }[];
+  const fk = sumK.filter((r) => r.kind === "fatura");
+  check("özet: fatura toplamı KDV HARİÇ (11333,84)", Math.round(fk.reduce((t, r) => t + Number(r.total), 0) * 100) === 1133384, JSON.stringify(fk));
+  check("özet: faturalardaki KDV toplamı 401,67", Math.round(fk.reduce((t, r) => t + Number(r.kdv), 0) * 100) === 40167, JSON.stringify(fk));
+  check("özet: hakediş satırının KDV'si 0", Number(sumK.find((r) => r.kind === "hakedis")?.kdv) === 0);
+  const range = { p_site_id: siteA, p_from: "2026-09-01", p_to: "2026-09-30" };
+  const monthsA = ((await c.admin.rpc("get_billing_report", range)).data ?? []) as { owner_id: string; invoices: string; invoice_kdv: string }[];
+  check("rapor (admin): ay bazında fatura KDV'si 401,67", Math.round(monthsA.filter((r) => r.owner_id === ids.owner).reduce((t, r) => t + Number(r.invoice_kdv), 0) * 100) === 40167, JSON.stringify(monthsA));
+  const totA = ((await c.admin.rpc("get_billing_totals", { p_site_id: siteA })).data ?? []) as { owner_id: string; invoice_kdv: string }[];
+  check("rapor (admin): tüm zamanlar KDV 401,67", Math.round(Number(totA.find((r) => r.owner_id === ids.owner)?.invoice_kdv) * 100) === 40167, JSON.stringify(totA));
+  check("genel özet: dönem fatura KDV'si 401,67", Math.round(Number(((await c.owner.rpc("get_site_overview", range)).data as { invoice_kdv: string }).invoice_kdv) * 100) === 40167);
+  check("rapor: şantiye dışı KDV göremez", Number(((await c.outsider.rpc("get_site_overview", range)).data as { invoice_kdv: string }).invoice_kdv) === 0);
+  check("rapor: ortak sahibin KDV'sini göremez", ((((await c.partner.rpc("get_billing_totals", { p_site_id: siteA })).data ?? []) as { owner_id: string }[]).every((r) => r.owner_id !== ids.owner)));
 } catch (e) {
   check("test akışı hatasız çalıştı", false, String((e as Error).message ?? e));
 } finally {

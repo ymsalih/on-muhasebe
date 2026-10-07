@@ -104,7 +104,8 @@ export function toTable(data: ReportData, siteName: string, from: string, to: st
           row("Makine", "Çalışılan saat", num(x.machineHours)),
           row("Makine", "Ödenen kira", money(x.rentPaid)),
           row("Hakediş / Fatura", "Dönem hakediş", money(x.progressTotal)),
-          row("Hakediş / Fatura", "Dönem fatura", money(x.invoiceTotal)),
+          row("Hakediş / Fatura", "Dönem fatura (KDV hariç)", money(x.invoiceTotal)),
+          row("Hakediş / Fatura", "Dönem faturalardaki KDV", money(x.invoiceKdv)),
           row("Hakediş / Fatura", "Tüm zamanlar hakediş", money(x.progressAll)),
           row("Hakediş / Fatura", "Tüm zamanlar fatura", money(x.invoiceAll)),
           row("Hakediş / Fatura", "Kalan (hakediş − fatura)", money(x.progressAll - x.invoiceAll)),
@@ -148,13 +149,13 @@ export function toTable(data: ReportData, siteName: string, from: string, to: st
       const monthName = (iso: string) => periodLabel(iso, "month");
       return {
         ...base,
-        headers: ["Ortak", "Dönem", "Hakediş", "Fatura", "Fark (hakediş − fatura)"],
-        moneyCols: [2, 3, 4],
+        headers: ["Ortak", "Dönem", "Hakediş", "Fatura (KDV hariç)", "Fatura KDV'si", "Fark (hakediş − fatura KDV hariç)"],
+        moneyCols: [2, 3, 4, 5],
         rows: [
-          ...data.months.map((r) => [r.ownerName, monthName(r.month), r.progress, r.invoices, r.progress - r.invoices]),
-          ...data.owners.map((r) => [r.ownerName, "Tüm zamanlar (kalan)", r.progress, r.invoices, r.progress - r.invoices]),
+          ...data.months.map((r) => [r.ownerName, monthName(r.month), r.progress, r.invoices, r.kdv, r.progress - r.invoices]),
+          ...data.owners.map((r) => [r.ownerName, "Tüm zamanlar (kalan)", r.progress, r.invoices, r.kdv, r.progress - r.invoices]),
         ],
-        totals: ["Dönem toplamı", "", data.progress, data.invoices, data.progress - data.invoices],
+        totals: ["Dönem toplamı", "", data.progress, data.invoices, data.kdv, data.progress - data.invoices],
       };
     }
   }
