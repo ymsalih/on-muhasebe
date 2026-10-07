@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FilePlus2, Receipt, UserCheck, Wallet } from "lucide-react";
+import { ChequeAlerts } from "@/components/cheques/cheque-alerts";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { DataRow } from "@/components/data-row";
 import { requireUser } from "@/lib/auth/session";
 import { countPresent } from "@/lib/attendance/queries";
 import { getCashSummary, listCashTransactions } from "@/lib/cash/queries";
+import { getChequeAlerts } from "@/lib/cheques/queries";
 import { monthBounds } from "@/lib/cash/range";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/parties/schemas";
@@ -26,18 +28,22 @@ export default async function SiteHomePage({ params }: { params: Promise<{ siteI
 
   const today = todayInIstanbul();
   const month = monthBounds(today);
-  const [, role, presentToday, summary, recent] = await Promise.all([
+  const [, role, presentToday, summary, recent, chequeAlerts] = await Promise.all([
     requireUser(),
     getSiteRole(siteId),
     countPresent(siteId, today),
     getCashSummary(siteId, month.from, month.to),
     listCashTransactions(siteId, {}, 5),
+    getChequeAlerts(siteId),
   ]);
   const canWrite = canWriteRole(role);
   const base = `/sites/${siteId}`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      {/* Vadesi yaklaşan / geçmiş çekler: kaçırılmasın diye en üstte; uyarı yoksa görünmez */}
+      <ChequeAlerts alerts={chequeAlerts} cekHref={(id) => `/sites/${id}/cekler`} />
+
       <SummaryCards monthIncome={summary.income} monthExpense={summary.expense} presentToday={presentToday} />
 
       <section aria-labelledby="recent-heading" className="rounded-xl border bg-card">

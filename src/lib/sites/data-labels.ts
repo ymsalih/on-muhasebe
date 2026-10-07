@@ -12,6 +12,7 @@ export const DATA_LABELS: Record<string, string> = {
   machines: "makine",
   machine_attendance: "makine puantajı",
   fuel_entries: "yakıt kaydı",
+  cheques: "çek",
   company_entries: "şirket kasası kaydı",
 };
 

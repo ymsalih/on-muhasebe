@@ -26,6 +26,7 @@
     "test:rls:archive": "tsx scripts/test-rls-archive.mts",
     "test:rls:report-extras": "tsx scripts/test-rls-report-extras.mts",
     "test:kdv": "tsx scripts/test-billing-kdv.mts",
+    "test:rls:cheques": "tsx scripts/test-rls-cheques.mts",
     "test:machine-sync": "tsx scripts/test-machine-sync.mts",
     "test:range": "tsx scripts/test-cash-range.mts"
   },

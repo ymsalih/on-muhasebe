@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Building2, CalendarDays, ChevronRight, MapPin, Plus } from "lucide-react";
+import { ChequeAlerts } from "@/components/cheques/cheque-alerts";
 import { requireUser } from "@/lib/auth/session";
+import { getChequeAlerts } from "@/lib/cheques/queries";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -22,7 +24,7 @@ type SiteCardData = {
  */
 export default async function SitesPage() {
   const supabase = await createClient();
-  const [profile, { data }, { data: totalsData }] = await Promise.all([
+  const [profile, { data }, { data: totalsData }, chequeAlerts] = await Promise.all([
     requireUser(),
     supabase
       .from("sites")
@@ -30,6 +32,7 @@ export default async function SitesPage() {
       .order("status") // 'active' 'closed'tan önce gelir
       .order("name"),
     supabase.rpc("get_sites_cash_totals"),
+    getChequeAlerts(null),
   ]);
   const net = new Map(
     ((totalsData as { site_id: number; income: number | string; expense: number | string }[] | null) ?? []).map((r) => [
@@ -69,6 +72,8 @@ export default async function SitesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Tüm şantiyelerdeki vadesi yaklaşan / geçmiş çekler */}
+      <ChequeAlerts alerts={chequeAlerts} showSite cekHref={(id) => `/sites/${id}/cekler`} />
       <p className="text-sm text-muted-foreground">
         {isAdmin ? "Tüm şantiyeler (salt görüntüleme)." : "Çalışmak istediğiniz şantiyeyi seçin."}
       </p>

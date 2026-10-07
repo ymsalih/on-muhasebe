@@ -18,6 +18,7 @@ import {
   Archive,
   Truck,
   Fuel,
+  FileCheck2,
   PanelLeftClose,
   PanelLeftOpen,
   UserPlus,
@@ -49,6 +50,8 @@ type NavItem = {
   enabled: boolean;
   /** Tam eşleşme gerektiren kök rota (ör. Ana Sayfa). */
   exact?: boolean;
+  /** Menü öğesinde sayı rozeti (ör. vadesi yaklaşan çek sayısı); danger = vadesi geçmiş var */
+  badge?: { count: number; danger: boolean };
 };
 
 type SiteRef = { id: number; name: string };
@@ -59,12 +62,14 @@ type AppShellProps = {
   site?: SiteRef;
   /** Kullanıcının erişebildiği şantiyeler (şantiye değiştirme listesi). */
   sites: SiteRef[];
+  /** Vadesi yaklaşan / geçmiş çek sayısı (menüde rozet olarak gösterilir) */
+  chequeAlert?: { count: number; danger: boolean };
   /** Salt okunur uyarı şeridi (arşivdeki şantiye / arşivdeki üyelik) */
   notice?: { text: string; href?: string; linkLabel?: string };
   children: React.ReactNode;
 };
 
-function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
+function buildNav(site: SiteRef | undefined, role: "admin" | "partner", chequeAlert?: { count: number; danger: boolean }) {
   if (site) {
     const base = `/sites/${site.id}`;
     return {
@@ -81,6 +86,7 @@ function buildNav(site: SiteRef | undefined, role: "admin" | "partner") {
         { href: `${base}/personel`, label: "Personel", icon: Users, enabled: true },
         { href: `${base}/malzeme`, label: "Malzeme", icon: Package, enabled: true },
         { href: `${base}/hakedis`, label: "Hakediş ve Fatura", icon: Receipt, enabled: true },
+        { href: `${base}/cekler`, label: "Çekler", icon: FileCheck2, enabled: true, badge: chequeAlert },
         { href: `${base}/makine`, label: "İş Makineleri", icon: Truck, enabled: true },
         { href: `${base}/yakit`, label: "Yakıt Takibi", icon: Fuel, enabled: true },
         { href: `${base}/raporlar`, label: "Raporlar", icon: BarChart3, enabled: true },
@@ -158,6 +164,7 @@ function NavLink({
       title={collapsed ? item.label : undefined}
       className={cn(
         base,
+        "relative",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
         layout !== "tab" && active && "bg-primary/15 ring-1 ring-primary/30",
         layout !== "tab" && !active && "hover:bg-muted/60",
@@ -166,6 +173,19 @@ function NavLink({
     >
       <Icon className="size-5 shrink-0" aria-hidden />
       <span className={cn(collapsed && "sr-only")}>{item.label}</span>
+      {item.badge && item.badge.count > 0 && (
+        <span
+          data-testid="nav-badge"
+          aria-label={`${item.badge.count} çek uyarısı`}
+          className={cn(
+            "shrink-0 rounded-full text-center font-bold tabular-nums text-white",
+            item.badge.danger ? "bg-red-600" : "bg-amber-700",
+            collapsed ? "absolute right-1 top-1 min-w-4 px-1 text-[10px] leading-4" : "ml-auto min-w-5 px-1.5 text-[11px] leading-5",
+          )}
+        >
+          {item.badge.count}
+        </span>
+      )}
     </Link>
   );
 }
@@ -222,11 +242,12 @@ function SiteChip({ site, sites }: { site: SiteRef; sites: SiteRef[] }) {
   );
 }
 
-export function AppShell({ user, site, sites, notice, children }: AppShellProps) {
+export function AppShell({ user, site, sites, notice, chequeAlert, children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const nav = buildNav(site, user.role);
+  const nav = buildNav(site, user.role, chequeAlert);
+  const moreAlert = nav.more.find((i) => i.badge && i.badge.count > 0)?.badge;
   const allItems = [...nav.primary, ...nav.more];
 
   return (
@@ -319,7 +340,10 @@ export function AppShell({ user, site, sites, notice, children }: AppShellProps)
         ))}
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <SheetTrigger className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground">
-            <Menu className="size-5" aria-hidden />
+            <span className="relative">
+              <Menu className="size-5" aria-hidden />
+              {moreAlert && <span data-testid="more-dot" className={cn("absolute -right-1 -top-1 size-2.5 rounded-full ring-2 ring-background", moreAlert.danger ? "bg-red-600" : "bg-amber-600")} />}
+            </span>
             Daha Fazla
           </SheetTrigger>
           <SheetContent side="bottom" className="pb-[env(safe-area-inset-bottom)]">

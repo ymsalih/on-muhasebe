@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { DOCUMENT_TYPE_LABELS, PARTY_CATEGORY_LABELS, type DocumentType, type PartyCategory } from "@/lib/goods/schemas";
 import { INVOICE_TYPE_LABELS, type InvoiceType } from "@/lib/billing/schemas";
+import { CHEQUE_DIRECTION_LABELS, chequeStatusLabel, type ChequeDirection, type ChequeStatus } from "@/lib/cheques/schemas";
 import { FUEL_TYPE_LABELS, type FuelType } from "@/lib/fuel/schemas";
 import { PERSON_STATUS_LABELS, type PersonStatus } from "@/lib/personnel/schemas";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/parties/schemas";
@@ -54,7 +55,7 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
   });
   const sum = (rows: (string | number)[][], col: number) => rows.reduce((s, r) => s + (typeof r[col] === "number" ? (r[col] as number) : 0), 0);
 
-  const [overview, transactions, balances, personnel, attendance, goods, materials, fuel, machineDays, progress, invoices] = await Promise.all([
+  const [overview, transactions, balances, personnel, attendance, goods, materials, fuel, machineDays, progress, invoices, cheques] = await Promise.all([
     loadReport(siteId, "ozet", from, to),
     fetchAll<{ transaction_date: string; type: string; description: string; amount: number | string; payment_method: PaymentMethod | null; categories: Named; parties: Named; users: UserRef }>((a, b) =>
       supabase
@@ -93,6 +94,11 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
     fetchAll<{ invoice_date: string; invoice_no: string | null; invoice_type: InvoiceType; description: string; amount: number | string; kdv_rate: number | string; kdv_amount: number | string; total_with_kdv: number | string; users: UserRef }>((a, b) =>
       supabase.from("invoices").select("invoice_date, invoice_no, invoice_type, description, amount, kdv_rate, kdv_amount, total_with_kdv, users(full_name)")
         .eq("site_id", siteId).gte("invoice_date", from).lte("invoice_date", to).order("invoice_date").order("id").range(a, b) as unknown as PageResult<never>,
+    ),
+    // Çekler: dönemde VADESİ olanlar (bekleyen/tahsil/karşılıksız/iptal hepsi)
+    fetchAll<{ direction: ChequeDirection; counterparty: string; amount: number | string; due_date: string; issue_date: string | null; cheque_no: string | null; bank: string | null; status: ChequeStatus; settled_date: string | null; note: string | null; users: UserRef }>((a, b) =>
+      supabase.from("cheques").select("direction, counterparty, amount, due_date, issue_date, cheque_no, bank, status, settled_date, note, users(full_name)")
+        .eq("site_id", siteId).gte("due_date", from).lte("due_date", to).order("due_date").order("id").range(a, b) as unknown as PageResult<never>,
     ),
   ]);
 
@@ -157,6 +163,12 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
   sheets.push(mk("Fatura", ["Tarih", "Ortak", "Fatura no", "Tür", "Açıklama", "Tutar (KDV hariç)", "KDV oranı (%)", "KDV", "Toplam (KDV dahil)"], invRows, {
     money: [5, 7, 8],
     totals: ["Toplam", "", "", "", "", sum(invRows, 5), "", sum(invRows, 7), sum(invRows, 8)],
+  }));
+
+  const chequeRows = cheques.map((r) => [date(r.due_date), txt(r.users?.full_name), CHEQUE_DIRECTION_LABELS[r.direction], r.counterparty, Number(r.amount), chequeStatusLabel(r.status, r.direction), date(r.settled_date), txt(r.bank), txt(r.cheque_no), date(r.issue_date), txt(r.note)]);
+  sheets.push(mk("Çekler", ["Vade tarihi", "Ortak", "Tür", "Kimden / kime", "Tutar", "Durum", "Tahsil / ödeme tarihi", "Banka", "Çek no", "Düzenleme tarihi", "Not"], chequeRows, {
+    money: [4],
+    totals: ["Toplam", "", "", "", sum(chequeRows, 4), "", "", "", "", "", ""],
   }));
 
   return sheets;
