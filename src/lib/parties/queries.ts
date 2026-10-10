@@ -13,10 +13,12 @@ export type PartyBalance = {
   transaction_count: number;
   last_transaction_date: string | null;
   total_invoiced: number;
+  /** Cariye yazılan borçların toplamı (party_debts) */
+  total_debt: number;
 };
 
 const BALANCE_COLUMNS =
-  "party_id, name, category, total_income, total_expense, balance, total_turnover, transaction_count, last_transaction_date, total_invoiced";
+  "party_id, name, category, total_income, total_expense, balance, total_turnover, transaction_count, last_transaction_date, total_invoiced, total_debt";
 
 /** Şantiyenin tüm carileri ve bakiyeleri (party_balances view'i: hesaplanan alanlar tabloda tutulmaz). */
 export async function listPartyBalances(siteId: number): Promise<PartyBalance[]> {
@@ -41,6 +43,7 @@ function normalize(r: PartyBalance): PartyBalance {
     balance: Number(r.balance),
     total_turnover: Number(r.total_turnover),
     total_invoiced: Number(r.total_invoiced),
+    total_debt: Number(r.total_debt ?? 0),
   };
 }
 
@@ -92,4 +95,27 @@ export async function listPartyTransactions(siteId: number, partyId: number): Pr
     .limit(TRANSACTION_LIST_LIMIT);
   if (error) throw new Error("transactions okunamadı");
   return ((data ?? []) as unknown as PartyTransaction[]).map((t) => ({ ...t, amount: Number(t.amount) }));
+}
+
+export type DebtRow = { id: number; date: string; amount: number; description: string | null; enteredBy: string | null };
+
+/** Bir cariye yazılan borç kayıtları, en yeniden eskiye. */
+export async function listPartyDebts(siteId: number, partyId: number): Promise<DebtRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("party_debts")
+    .select("id, debt_date, amount, description, users(full_name)")
+    .eq("site_id", siteId)
+    .eq("party_id", partyId)
+    .order("debt_date", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(500);
+  if (error) throw new Error("party_debts okunamadı");
+  return ((data ?? []) as unknown as { id: number; debt_date: string; amount: number | string; description: string | null; users: { full_name: string } | null }[]).map((r) => ({
+    id: r.id,
+    date: r.debt_date,
+    amount: Number(r.amount),
+    description: r.description,
+    enteredBy: r.users?.full_name ?? null,
+  }));
 }

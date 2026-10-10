@@ -158,10 +158,10 @@ export default async function ReportsPage({
       {data.tab === "cari" && (
         <section className="space-y-2" aria-label="Cari bazlı">
           <p className="text-xs text-muted-foreground">
-            Faturalanan / ödenen / tahsil edilen seçili döneme aittir; kalan borç tüm zamanların toplamıdır (faturalanan − ödenen). En çok kalan borcu olan başta.
+            Yazılan borç / faturalanan / ödenen / tahsil edilen seçili döneme aittir; kalan borç tüm zamanların toplamıdır (yazılan borç + faturalanan − ödenen). En çok kalan borcu olan başta.
           </p>
           {data.rows.length === 0 ? (
-            <Empty text="Bu dönemde cari hareketi veya irsaliye tutarı yok." />
+            <Empty text="Bu dönemde cari hareketi, borç kaydı veya irsaliye tutarı yok." />
           ) : (
             <div className="divide-y rounded-xl border bg-card">
               {data.rows.map((r) => (
@@ -171,7 +171,7 @@ export default async function ReportsPage({
                   title={r.name}
                   badge={<CategoryBadge category={r.category} />}
                   lines={[
-                    [r.invoiced > 0 && `Fatura ${formatCurrency(r.invoiced)}`, r.paid > 0 && `Ödenen ${formatCurrency(r.paid)}`, r.collected > 0 && `Tahsilat ${formatCurrency(r.collected)}`]
+                    [r.debt > 0 && `Yazılan borç ${formatCurrency(r.debt)}`, r.invoiced > 0 && `Fatura ${formatCurrency(r.invoiced)}`, r.paid > 0 && `Ödenen ${formatCurrency(r.paid)}`, r.collected > 0 && `Tahsilat ${formatCurrency(r.collected)}`]
                       .filter(Boolean)
                       .join(" · "),
                   ]}

@@ -8,7 +8,8 @@ import { requireUser } from "@/lib/auth/session";
 import { getIncomeAllocations, listCategories } from "@/lib/cash/queries";
 import { toIncomeSources } from "@/lib/cash/sources";
 import { formatCurrency } from "@/lib/format";
-import { TRANSACTION_LIST_LIMIT, getParty, getPartyBalance, listPartyTransactions } from "@/lib/parties/queries";
+import { TRANSACTION_LIST_LIMIT, getParty, getPartyBalance, listPartyDebts, listPartyTransactions } from "@/lib/parties/queries";
+import { owedTotal, remainingDebt } from "@/lib/parties/debt";
 import { todayInIstanbul } from "@/lib/personnel/status";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
@@ -22,17 +23,20 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
   const partyId = Number(rawParty);
   if (!Number.isInteger(siteId) || !Number.isInteger(partyId)) notFound();
 
-  const [, role, party, balance, transactions, categories, allocations] = await Promise.all([
+  const [, role, party, balance, transactions, debts, categories, allocations] = await Promise.all([
     requireUser(),
     getSiteRole(siteId),
     getParty(siteId, partyId),
     getPartyBalance(siteId, partyId),
     listPartyTransactions(siteId, partyId),
+    listPartyDebts(siteId, partyId),
     listCategories(siteId),
     getIncomeAllocations(siteId, null, null),
   ]);
   if (!party || !balance) notFound();
   const canWrite = canWriteRole(role);
+  const owed = owedTotal(balance);
+  const remaining = remainingDebt(balance);
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -83,7 +87,7 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
         )}
       </div>
 
-      <section aria-label="Cari özeti" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section aria-label="Cari özeti" className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-muted-foreground">Toplam Ciro</p>
           <p className="mt-1 text-lg font-semibold tabular-nums">{formatCurrency(balance.total_turnover)}</p>
@@ -100,31 +104,34 @@ export default async function PartyDetailPage({ params }: { params: Promise<{ si
           <p className="text-xs text-muted-foreground">Bakiye</p>
           <BalanceAmount balance={balance.balance} className={cn("mt-1 text-lg", balanceTone(balance.balance))} />
         </div>
+        {owed > 0 && (
+          <>
+            <div className="rounded-xl border bg-card p-4" data-testid="card-owed">
+              <p className="text-xs text-muted-foreground">Toplam Borç</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums">{formatCurrency(owed)}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {balance.total_debt > 0 && `Yazılan ${formatCurrency(balance.total_debt)}`}
+                {balance.total_debt > 0 && balance.total_invoiced > 0 && " + "}
+                {balance.total_invoiced > 0 && `irsaliye ${formatCurrency(balance.total_invoiced)}`}
+              </p>
+            </div>
+            <div className="rounded-xl border-2 bg-card p-4" data-testid="card-remaining">
+              <p className="text-xs text-muted-foreground">{remaining >= 0 ? "Kalan Borç" : "Fazla Ödeme"}</p>
+              <p className={cn("mt-1 text-lg font-semibold tabular-nums", remaining > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
+                {formatCurrency(Math.abs(remaining))}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Toplam borç − ödenen {formatCurrency(balance.total_expense)}</p>
+            </div>
+          </>
+        )}
       </section>
-      {balance.total_invoiced > 0 && (
-        <section aria-label="Fatura ve borç durumu" className="grid grid-cols-3 gap-3 rounded-xl border bg-card p-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Faturalanan (irsaliye)</p>
-            <p className="mt-1 text-base font-semibold tabular-nums">{formatCurrency(balance.total_invoiced)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Ödenen</p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-orange-700 dark:text-orange-400">{formatCurrency(balance.total_expense)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{balance.total_invoiced - balance.total_expense >= 0 ? "Kalan borç" : "Fazla ödeme"}</p>
-            <p className={cn("mt-1 text-base font-semibold tabular-nums", balance.total_invoiced - balance.total_expense > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
-              {formatCurrency(Math.abs(balance.total_invoiced - balance.total_expense))}
-            </p>
-          </div>
-        </section>
-      )}
-      <p className="-mt-2 text-xs text-muted-foreground">Bakiye = Tahsilat − Ödeme. Yeşil: tahsilat fazla · Kırmızı: ödeme fazla.</p>
+      <p className="-mt-2 text-xs text-muted-foreground">Bakiye = Tahsilat − Ödeme. Kalan borç = yazılan borç + irsaliye tutarları − ödemeler.</p>
 
       <PartyTransactions
         siteId={siteId}
         party={{ id: partyId, name: party.name }}
         transactions={transactions}
+        debts={debts}
         categories={categories}
         canWrite={canWrite}
         today={todayInIstanbul()}

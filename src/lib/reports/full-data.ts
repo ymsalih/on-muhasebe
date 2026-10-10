@@ -7,6 +7,7 @@ import { CHEQUE_DIRECTION_LABELS, chequeStatusLabel, type ChequeDirection, type 
 import { FUEL_TYPE_LABELS, type FuelType } from "@/lib/fuel/schemas";
 import { PERSON_STATUS_LABELS, type PersonStatus } from "@/lib/personnel/schemas";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/parties/schemas";
+import { remainingDebt } from "@/lib/parties/debt";
 import { listPartyBalances } from "@/lib/parties/queries";
 import { loadReport } from "@/lib/reports/queries";
 import { toTable, type ReportTable } from "@/lib/reports/table";
@@ -55,7 +56,7 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
   });
   const sum = (rows: (string | number)[][], col: number) => rows.reduce((s, r) => s + (typeof r[col] === "number" ? (r[col] as number) : 0), 0);
 
-  const [overview, transactions, balances, personnel, attendance, goods, materials, fuel, machineDays, progress, invoices, cheques] = await Promise.all([
+  const [overview, transactions, balances, personnel, attendance, goods, materials, fuel, machineDays, progress, invoices, cheques, partyDebts] = await Promise.all([
     loadReport(siteId, "ozet", from, to),
     fetchAll<{ transaction_date: string; type: string; description: string; amount: number | string; payment_method: PaymentMethod | null; categories: Named; parties: Named; users: UserRef }>((a, b) =>
       supabase
@@ -100,6 +101,11 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
       supabase.from("cheques").select("direction, counterparty, amount, due_date, issue_date, cheque_no, bank, status, settled_date, note, users(full_name)")
         .eq("site_id", siteId).gte("due_date", from).lte("due_date", to).order("due_date").order("id").range(a, b) as unknown as PageResult<never>,
     ),
+    // Cari borç kayıtları (dönemde yazılanlar)
+    fetchAll<{ debt_date: string; amount: number | string; description: string | null; parties: Named; users: UserRef }>((a, b) =>
+      supabase.from("party_debts").select("debt_date, amount, description, parties(name), users(full_name)")
+        .eq("site_id", siteId).gte("debt_date", from).lte("debt_date", to).order("debt_date").order("id").range(a, b) as unknown as PageResult<never>,
+    ),
   ]);
 
   const sheets: ReportTable[] = [];
@@ -117,10 +123,10 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
     title: `${siteName} — Cari bakiyeleri (tüm zamanlar)`,
     subtitle: "Tüm zamanların bakiyeleri (dönemden bağımsız)",
     sheet: "Cariler",
-    headers: ["Cari", "Kategori", "Faturalanan", "Ödenen", "Tahsil edilen", "Kalan borç", "Hareket sayısı", "Son hareket"],
-    moneyCols: [2, 3, 4, 5],
-    intCols: [6],
-    rows: balances.map((b) => [b.name, PARTY_CATEGORY_LABELS[b.category as PartyCategory], b.total_invoiced, b.total_expense, b.total_income, b.total_invoiced - b.total_expense, b.transaction_count, date(b.last_transaction_date)]),
+    headers: ["Cari", "Kategori", "Yazılan borç", "Faturalanan", "Ödenen", "Tahsil edilen", "Kalan borç", "Hareket sayısı", "Son hareket"],
+    moneyCols: [2, 3, 4, 5, 6],
+    intCols: [7],
+    rows: balances.map((b) => [b.name, PARTY_CATEGORY_LABELS[b.category as PartyCategory], b.total_debt, b.total_invoiced, b.total_expense, b.total_income, remainingDebt(b), b.transaction_count, date(b.last_transaction_date)]),
   });
 
   sheets.push({
@@ -164,6 +170,9 @@ export async function loadFullData(siteId: number, siteName: string, from: strin
     money: [5, 7, 8],
     totals: ["Toplam", "", "", "", "", sum(invRows, 5), "", sum(invRows, 7), sum(invRows, 8)],
   }));
+
+  const debtRows = partyDebts.map((r) => [date(r.debt_date), txt(r.parties?.name), Number(r.amount), txt(r.description), txt(r.users?.full_name)]);
+  sheets.push(mk("Cari Borçlar", ["Tarih", "Cari", "Borç tutarı", "Açıklama", "Giren"], debtRows, { money: [2], totals: ["Toplam", "", sum(debtRows, 2), "", ""] }));
 
   const chequeRows = cheques.map((r) => [date(r.due_date), txt(r.users?.full_name), CHEQUE_DIRECTION_LABELS[r.direction], r.counterparty, Number(r.amount), chequeStatusLabel(r.status, r.direction), date(r.settled_date), txt(r.bank), txt(r.cheque_no), date(r.issue_date), txt(r.note)]);
   sheets.push(mk("Çekler", ["Vade tarihi", "Ortak", "Tür", "Kimden / kime", "Tutar", "Durum", "Tahsil / ödeme tarihi", "Banka", "Çek no", "Düzenleme tarihi", "Not"], chequeRows, {

@@ -28,3 +28,16 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cek: "Çek",
   diger: "Diğer",
 };
+
+/** Cariye borç yazma ("çelikçiye 100.000 ₺ borcum var"): tutar, tarih ve isteğe bağlı açıklama. */
+export const debtSchema = z.object({
+  amount: z
+    .string()
+    .trim()
+    .min(1, "Borç tutarını girin.")
+    .regex(/^\d{1,12}([.,]\d{1,2})?$/, "Geçerli bir tutar girin (en fazla 2 ondalık).")
+    .refine((v) => Number(v.replace(",", ".")) > 0, "Tutar 0'dan büyük olmalı."),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Borç tarihini seçin."),
+  description: z.string().trim().max(300, "Açıklama en fazla 300 karakter olabilir."),
+});
+export type DebtValues = z.infer<typeof debtSchema>;

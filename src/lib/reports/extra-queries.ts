@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getCostBreakdown, type BreakdownRow } from "@/lib/materials/queries";
+import { remainingDebt } from "@/lib/parties/debt";
 import { listPartyBalances } from "@/lib/parties/queries";
 
 /**
@@ -46,7 +47,7 @@ export async function getOverview(siteId: number, from: string, to: string): Pro
   ]);
   if (error || !data) throw new Error("get_site_overview okunamadı");
   const d = data as Record<string, unknown>;
-  const debts = balances.map((b) => b.total_invoiced - b.total_expense).filter((v) => v > 0);
+  const debts = balances.map((b) => remainingDebt(b)).filter((v) => v > 0);
   return {
     tab: "ozet",
     n: {

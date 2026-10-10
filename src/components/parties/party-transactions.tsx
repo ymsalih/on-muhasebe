@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Receipt } from "lucide-react";
+import { Plus, Receipt, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataRow } from "@/components/data-row";
 import { TransactionSheet, type SheetTx } from "@/components/cash/transaction-sheet";
+import { DebtList, DebtSheet } from "@/components/parties/party-debts";
 import { StickyActionBar } from "@/components/layout/sticky-action-bar";
 import type { CategoryOption } from "@/lib/cash/actions";
 import type { IncomeSource } from "@/lib/cash/sources";
 import type { CashType } from "@/lib/cash/schemas";
-import type { PartyTransaction } from "@/lib/parties/queries";
+import type { DebtRow, PartyTransaction } from "@/lib/parties/queries";
 import { PAYMENT_METHOD_LABELS, TX_KIND_LABELS, typeToKind } from "@/lib/parties/schemas";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export function PartyTransactions({
   siteId,
   party,
   transactions,
+  debts,
   categories,
   canWrite,
   today,
@@ -49,6 +51,8 @@ export function PartyTransactions({
   siteId: number;
   party: { id: number; name: string };
   transactions: PartyTransaction[];
+  /** Cariye yazılan borç kayıtları */
+  debts: DebtRow[];
   categories: CategoryOption[];
   canWrite: boolean;
   today: string;
@@ -57,9 +61,20 @@ export function PartyTransactions({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SheetTx | null>(null);
+  const [debtOpen, setDebtOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<DebtRow | null>(null);
 
   return (
     <div className="space-y-3 pb-28 md:pb-0">
+      <DebtList
+        debts={debts}
+        canWrite={canWrite}
+        onEdit={(d) => {
+          setEditingDebt(d);
+          setDebtOpen(true);
+        }}
+      />
+
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-base font-semibold">Hareketler</h2>
         {transactions.length > 0 && <span className="text-xs text-muted-foreground">{transactions.length} kayıt</span>}
@@ -70,7 +85,7 @@ export function PartyTransactions({
           <Receipt className="size-8 text-muted-foreground" aria-hidden />
           <p className="font-medium">Bu cariye ait hareket yok</p>
           <p className="text-sm text-muted-foreground">
-            {canWrite ? "İlk ödeme veya tahsilatı ekleyin; bakiye buna göre hesaplanır." : "Ödeme ve tahsilatlar eklendikçe burada listelenir."}
+            {canWrite ? "İlk ödeme veya tahsilatı ekleyin; bakiye ve kalan borç buna göre hesaplanır." : "Ödeme ve tahsilatlar eklendikçe burada listelenir."}
           </p>
         </div>
       ) : (
@@ -122,7 +137,8 @@ export function PartyTransactions({
         <StickyActionBar>
           <Button
             type="button"
-            className="h-12 flex-1 text-base md:flex-none md:px-6"
+            className="h-12 flex-[1.4] text-sm md:flex-none md:px-6 md:text-base"
+            data-testid="add-payment"
             onClick={() => {
               setEditing(null);
               setOpen(true);
@@ -131,8 +147,23 @@ export function PartyTransactions({
             <Plus aria-hidden />
             Ödeme / Tahsilat Ekle
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 flex-1 text-sm md:flex-none md:px-6 md:text-base"
+            data-testid="add-debt"
+            onClick={() => {
+              setEditingDebt(null);
+              setDebtOpen(true);
+            }}
+          >
+            <Wallet aria-hidden />
+            Borç Ekle
+          </Button>
         </StickyActionBar>
       )}
+
+      <DebtSheet siteId={siteId} party={party} open={debtOpen} onOpenChange={setDebtOpen} editing={editingDebt} today={today} />
 
       <TransactionSheet
         siteId={siteId}

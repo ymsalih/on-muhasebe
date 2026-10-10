@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getCashSummary, listCategories } from "@/lib/cash/queries";
+import { remainingDebt } from "@/lib/parties/debt";
 import { listPartyBalances } from "@/lib/parties/queries";
 import { addDays, daysBetween } from "@/lib/personnel/status";
 import type { PartyCategory } from "@/lib/goods/schemas";
@@ -85,21 +86,26 @@ export type PartyReportRow = {
   name: string;
   category: PartyCategory;
   invoiced: number;
+  /** Seçili dönemde cariye yazılan borç */
+  debt: number;
   paid: number;
   collected: number;
-  /** Tüm zamanların kalan borcu: faturalanan − ödenen (dönemden bağımsız) */
+  /** Tüm zamanların kalan borcu: yazılan borç + faturalanan − ödenen (dönemden bağımsız) */
   remaining: number;
 };
 export type PartyData = { tab: "cari"; rows: PartyReportRow[] };
 
 export async function getPartyReport(siteId: number, from: string, to: string): Promise<PartyData> {
   const supabase = await createClient();
-  const [{ data, error }, balances] = await Promise.all([
+  const [{ data, error }, balances, debtRes] = await Promise.all([
     supabase.rpc("get_party_report", { p_site_id: siteId, p_from: from, p_to: to }),
     listPartyBalances(siteId),
+    supabase.rpc("get_party_debt_report", { p_site_id: siteId, p_from: from, p_to: to }),
   ]);
   if (error) throw new Error("get_party_report okunamadı");
-  const remaining = new Map(balances.map((b) => [b.party_id, b.total_invoiced - b.total_expense]));
+  if (debtRes.error) throw new Error("get_party_debt_report okunamadı");
+  const remaining = new Map(balances.map((b) => [b.party_id, remainingDebt(b)]));
+  const periodDebt = new Map(((debtRes.data ?? []) as { party_id: number; total: number | string }[]).map((r) => [r.party_id, Number(r.total)]));
   const rows = (
     (data ?? []) as { party_id: number; name: string; category: PartyCategory; invoiced: number | string; paid: number | string; collected: number | string }[]
   ).map((r) => ({
@@ -107,10 +113,21 @@ export async function getPartyReport(siteId: number, from: string, to: string): 
     name: r.name,
     category: r.category,
     invoiced: Number(r.invoiced),
+    debt: periodDebt.get(r.party_id) ?? 0,
     paid: Number(r.paid),
     collected: Number(r.collected),
     remaining: remaining.get(r.party_id) ?? 0,
   }));
+  // Borç yazılmış ve hâlâ kalan borcu olan cariler, o dönemde hareketi olmasa da listelenir (borç gözden kaçmasın)
+  const listed = new Set(rows.map((r) => r.partyId));
+  for (const bal of balances) {
+    if (listed.has(bal.party_id)) continue;
+    const owedNow = remaining.get(bal.party_id) ?? 0;
+    const writtenInPeriod = periodDebt.get(bal.party_id) ?? 0;
+    if (writtenInPeriod > 0 || (bal.total_debt > 0 && owedNow > 0)) {
+      rows.push({ partyId: bal.party_id, name: bal.name, category: bal.category, invoiced: 0, debt: writtenInPeriod, paid: 0, collected: 0, remaining: owedNow });
+    }
+  }
   // En çok kalan borcu olan başta
   rows.sort((a, b) => b.remaining - a.remaining || a.name.localeCompare(b.name, "tr"));
   return { tab: "cari", rows };

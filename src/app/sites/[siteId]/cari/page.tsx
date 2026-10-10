@@ -5,8 +5,9 @@ import { BookUser, Plus, Search } from "lucide-react";
 import { DataRow } from "@/components/data-row";
 import { BalanceAmount, CategoryBadge } from "@/components/parties/balance";
 import { requireUser } from "@/lib/auth/session";
-import { formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { PARTY_CATEGORIES, PARTY_CATEGORY_LABELS, type PartyCategory } from "@/lib/goods/schemas";
+import { owedTotal, remainingDebt, round2 } from "@/lib/parties/debt";
 import { listPartyBalances } from "@/lib/parties/queries";
 import { canWriteRole, getSiteRole } from "@/lib/sites/queries";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,13 @@ export default async function PartiesPage({
   const [, all, role] = await Promise.all([requireUser(), listPartyBalances(siteId), getSiteRole(siteId)]);
   const canWrite = canWriteRole(role);
   const base = `/sites/${siteId}/cari`;
+
+  // Tüm carilerin borç toplamları (arama/filtreden bağımsız): toplam borç, ödenen (borcu olan carilere) ve kalan borç
+  const indebted = all.filter((p) => owedTotal(p) > 0);
+  const sumOwed = round2(indebted.reduce((s, p) => s + owedTotal(p), 0));
+  const sumPaid = round2(indebted.reduce((s, p) => s + p.total_expense, 0));
+  const sumRemaining = round2(indebted.reduce((s, p) => s + Math.max(remainingDebt(p), 0), 0));
+  const debtors = indebted.filter((p) => remainingDebt(p) > 0).length;
 
   // Arama ve kategori sayıları tek sorgudan gelen listeyle yapılır (şantiye başına yüzlerce cari).
   const needle = q?.toLocaleLowerCase("tr-TR");
@@ -63,6 +71,24 @@ export default async function PartiesPage({
           </Link>
         )}
       </div>
+
+      {indebted.length > 0 && (
+        <section aria-label="Borç toplamları" className="grid grid-cols-3 gap-2 sm:gap-3" data-testid="debt-totals">
+          <div className="min-w-0 rounded-xl border bg-card p-3">
+            <p className="text-xs text-muted-foreground">Toplam borç</p>
+            <p className="mt-1 break-words text-sm font-semibold tabular-nums sm:text-base">{formatCurrency(sumOwed)}</p>
+          </div>
+          <div className="min-w-0 rounded-xl border bg-card p-3">
+            <p className="text-xs text-muted-foreground">Ödenen</p>
+            <p className="mt-1 break-words text-sm font-semibold tabular-nums text-orange-700 dark:text-orange-400 sm:text-base">{formatCurrency(sumPaid)}</p>
+          </div>
+          <div className="min-w-0 rounded-xl border-2 bg-card p-3">
+            <p className="text-xs text-muted-foreground">Kalan borç</p>
+            <p className="mt-1 break-words text-sm font-semibold tabular-nums text-red-600 dark:text-red-400 sm:text-base" data-testid="debt-remaining-total">{formatCurrency(sumRemaining)}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{debtors} cari</p>
+          </div>
+        </section>
+      )}
 
       <form method="get" action={base} role="search" className="relative">
         {category && <input type="hidden" name="kategori" value={category} />}
@@ -131,13 +157,24 @@ export default async function PartiesPage({
                   ? `${p.transaction_count} hareket · son: ${formatDate(p.last_transaction_date)}`
                   : "Henüz hareket yok",
               ]}
-              trailing={<BalanceAmount balance={p.balance} />}
+              trailing={
+                owedTotal(p) > 0 ? (
+                  <span className="block" data-testid={`party-remaining-${p.party_id}`}>
+                    <span className={cn("block font-semibold tabular-nums", remainingDebt(p) > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400")}>
+                      {formatCurrency(Math.abs(remainingDebt(p)))}
+                    </span>
+                    <span className="block text-[11px] font-normal text-muted-foreground">{remainingDebt(p) > 0 ? "Kalan borç" : "Fazla ödeme"}</span>
+                  </span>
+                ) : (
+                  <BalanceAmount balance={p.balance} />
+                )
+              }
             />
           ))}
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">Bakiye = Tahsilat − Ödeme. Yeşil: tahsilat fazla · Kırmızı: ödeme fazla.</p>
+      <p className="text-xs text-muted-foreground">Bakiye = Tahsilat − Ödeme. Kalan borç = yazılan borç + irsaliye tutarları − ödemeler.</p>
     </div>
   );
 }

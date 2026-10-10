@@ -53,12 +53,13 @@ export function toTable(data: ReportData, siteName: string, from: string, to: st
     case "cari":
       return {
         ...base,
-        headers: ["Cari", "Kategori", "Faturalanan", "Ödenen", "Tahsil edilen", "Kalan borç (tüm zamanlar)"],
-        moneyCols: [2, 3, 4, 5],
-        rows: data.rows.map((r) => [r.name, PARTY_CATEGORY_LABELS[r.category], r.invoiced, r.paid, r.collected, r.remaining]),
+        headers: ["Cari", "Kategori", "Yazılan borç", "Faturalanan", "Ödenen", "Tahsil edilen", "Kalan borç (tüm zamanlar)"],
+        moneyCols: [2, 3, 4, 5, 6],
+        rows: data.rows.map((r) => [r.name, PARTY_CATEGORY_LABELS[r.category], r.debt, r.invoiced, r.paid, r.collected, r.remaining]),
         totals: [
           "Toplam",
           "",
+          data.rows.reduce((s, r) => s + r.debt, 0),
           data.rows.reduce((s, r) => s + r.invoiced, 0),
           data.rows.reduce((s, r) => s + r.paid, 0),
           data.rows.reduce((s, r) => s + r.collected, 0),
